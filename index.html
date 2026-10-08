@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>残業ゲーム</title>
+<style>
+:root{--bg:#10231a;--ink:#f2f2f2;--acc:#f2b705;--pn:#0b1a13;--bd:#2d5a43;--sw:112px}
+html{height:100%}body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{display:none!important}
+.felt{background:radial-gradient(circle at 50% 40%,#2c6a4a,#173d2b);border:2px solid var(--bd);border-radius:12px;padding:14px;color:#fff}
+.hero{text-align:center;padding:28px 8px}.hero .big{font-size:64px}.hero h2{font-size:28px;margin:8px 0}.hero p{margin:6px 0 18px;opacity:.8;font-size:14px}
+.hero button{display:block;width:100%;max-width:300px;margin:10px auto;font-size:17px;padding:14px}
+.hero input{display:block;width:100%;max-width:300px;box-sizing:border-box;margin:8px auto;padding:12px;font-size:16px;border-radius:10px;border:1px solid #8886;background:transparent;color:inherit;text-align:center}
+.hero .join{display:flex;gap:8px;max-width:300px;margin:10px auto}.hero .join input{margin:0;text-transform:uppercase}.hero .join button{width:auto;margin:0;padding:0 18px}
+#code{font-size:36px;letter-spacing:6px;font-weight:800;text-align:center}#plist{list-style:none;padding:0;font-size:16px}#plist li{padding:6px 0;border-bottom:1px solid #fff3}
+.sub{font-size:12px;opacity:.75}button.go{font-size:14px;padding:8px 14px;border:0;border-radius:999px;background:var(--acc);color:#222;font-weight:700;cursor:pointer}
+.layout{display:grid;grid-template-columns:1fr 300px;gap:10px;align-items:start}
+.table{display:grid;grid-template-columns:var(--sw) 1fr var(--sw);grid-template-areas:"T T T" "L C R" "M M M";gap:6px;background:radial-gradient(ellipse at 50% 45%,#2f7a52,#1a4a32 70%);border:3px solid #0d2a1c;border-radius:14px;padding:10px;min-height:520px}
+#sT{grid-area:T;display:flex;justify-content:space-around;gap:6px}#sL{grid-area:L;display:flex;flex-direction:column-reverse;justify-content:center;gap:6px}#sR{grid-area:R;display:flex;flex-direction:column;justify-content:center;gap:6px}
+.center{grid-area:C;background:#0b3320;border:2px solid #0d2a1c;border-radius:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px;min-height:170px;text-align:center}
+.op{padding:4px 6px;border-radius:8px;border:2px solid transparent}.op.turn{border-color:var(--acc);background:#0003}.op.from{box-shadow:0 0 0 3px #4dd0ff}
+.nm{font-size:12.5px;font-weight:700;margin-bottom:3px}.row{display:flex;flex-wrap:wrap;gap:3px}
+.b{width:22px;height:34px;border-radius:4px;border:1px solid #fff;background:repeating-linear-gradient(45deg,#2a4f9a,#2a4f9a 3px,#4670c4 3px,#4670c4 6px);padding:0}
+.b.t{cursor:pointer;border:2px solid var(--acc);animation:p 1s infinite}.b.h{box-shadow:0 0 0 3px var(--acc);transform:translateY(-4px)}@keyframes p{50%{transform:translateY(-3px)}}
+#msg{margin:0;font-size:15px;font-weight:700;min-height:2.6em}#act{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.fld{display:flex;gap:4px;align-items:center;font-size:11px}.fld .c{width:44px;height:60px}.fld .c i{font-size:20px}
+.mine{grid-area:M;background:#0003;border-radius:10px;padding:6px 8px}.hand{display:flex;flex-wrap:wrap;gap:6px;padding-top:8px}
+.c{position:relative;width:62px;height:88px;border-radius:7px;background:#fff;color:#222;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;box-shadow:0 1px 3px #0007;border:2px solid #fff;box-sizing:border-box;cursor:pointer}
+.c i{font-style:normal;font-size:28px}.c span{font-size:11px;font-weight:800;white-space:nowrap}.c.joker{background:#ffd9d9;border-color:#d33}
+.c.pair{border-color:var(--acc);background:#fff8dc}.c.sel{border-color:#19b5ff;box-shadow:0 0 0 3px #19b5ff;animation:p 1s infinite}.c.ex{opacity:.4}.c.h{box-shadow:0 0 0 3px var(--acc);transform:translateY(-6px)}
+.c u{position:absolute;bottom:-1px;right:-1px;background:var(--acc);font-size:9px;font-weight:800;text-decoration:none;padding:0 4px;border-radius:5px 0 5px 0}
+.c .tg{position:absolute;top:-9px;left:-4px;background:#e8336d;color:#fff;font-size:10px;padding:1px 5px;border-radius:8px;white-space:nowrap}
+#info{font-size:12.5px;background:#0004;border-radius:8px;padding:6px 10px;margin-top:6px;line-height:1.4}
+.side{display:flex;flex-direction:column;gap:8px}.box{background:var(--pn);border:1px solid var(--bd);border-radius:10px;padding:8px 10px;font-size:12.5px;line-height:1.55}
+.box h3{margin:0 0 4px;font-size:13px;color:var(--acc)}.box.priv{border-color:#e8336d}.box.priv h3{color:#ff8fb3}
+.lg{max-height:150px;overflow-y:auto}.cur{color:var(--acc);font-weight:700}#rules{max-height:260px;overflow-y:auto}
+.rl{padding:3px 4px;border-bottom:1px solid #fff1}.rl.on{background:#f2b70033}.rl span{opacity:.8;font-size:11.5px}.rl em{color:#7fe3a1;font-style:normal;font-weight:700}
+#end{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;z-index:9}#end>div{background:#fff;color:#222;padding:24px;border-radius:16px;text-align:center;font-size:18px;font-weight:700}
+#res{white-space:pre-line}#end .go{margin:14px 6px 0}
+@media(max-width:820px){:root{--sw:78px}.layout{grid-template-columns:1fr}.table{min-height:0;padding:6px}.center{border-radius:24px}.c{width:54px;height:80px}.b{width:18px;height:28px}}
+</style></head><body>
+<main>
+<section id="open" class="felt hero"><div class="big">💼</div><h2>残業ゲーム</h2>
+<p>残業😈を押し付け合う、ババ抜きベースのカードゲーム</p>
+<input id="nm" maxlength="12" placeholder="なまえ">
+<button class="go" id="bsolo">ひとりで遊ぶ(CPU対戦)</button>
+<button class="go" id="bcre">ルームを作って友達と遊ぶ</button>
+<div class="join"><input id="cd" maxlength="4" placeholder="ルームコード"><button class="go" id="bjoin">参加</button></div>
+<p id="onote" class="sub"></p></section>
+<section id="lobby" class="felt" hidden>
+<div class="nm">ルームコード</div><div id="code"></div>
+<div style="text-align:center;margin:8px"><button class="go" id="bcopy">招待リンクをコピー</button></div>
+<ul id="plist"></ul><p id="lnote"></p><p class="sub">3人に満たない分はCPUが入ります(最大6人)。</p>
+<div style="display:flex;gap:8px;justify-content:center"><button class="go" id="bs">ゲーム開始</button><button class="go" id="bback">やめる</button></div></section>
+<div id="game" class="layout" hidden>
+<section class="table"><div id="sT"></div><div id="sL"></div>
+<div class="center"><div id="field"></div><p id="msg" aria-live="polite"></p><div id="act"></div></div>
+<div id="sR"></div>
+<div class="mine"><div id="me"></div><div id="info"></div></div></section>
+<aside class="side">
+<div class="box"><h3 id="hd"></h3><button class="go" id="bcp2">招待リンク</button> <button class="go" id="bleave">ロビーへ</button></div>
+<div class="box"><h3>プレイヤー</h3><div id="pls"></div></div>
+<div class="box"><h3>📋 行動ログ(全員に見える)</h3><div id="log" class="lg"></div></div>
+<div class="box priv"><h3>🔒 あなただけのログ(カードの移動)</h3><div id="plog" class="lg"></div></div>
+<div class="box"><h3>🃏 カード効果</h3><div id="rules"></div></div>
+</aside></div>
+</main>
+<div id="end" hidden><div><span id="res"></span><br><button class="go" id="again"></button><button class="go" id="home">オープニングに戻る</button></div></div>
+<script>
+let T=[],V=null,sess=null,es=null,sent='',lastKey='',selT=-2,stick='手札にカーソルを合わせる(スマホはタップ)と効果が表示されます';
+const $=id=>document.getElementById(id),D={1:[[],[0],[]],2:[[0],[],[1]],3:[[0],[1],[2]],4:[[0],[1,2],[3]],5:[[0,1],[2],[3,4]],6:[[0,1],[2,3],[4,5]]};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+try{sess=JSON.parse(localStorage.getItem('zg'))}catch(e){}
+$('nm').value=localStorage.getItem('zname')||'';
+async function api(p,b){try{const r=await fetch('/api/'+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});return await r.json()}catch(e){return{error:'通信に失敗しました'}}}
+const act=(type,x={})=>api('act',{room:sess.room,pid:sess.pid,token:sess.token,type,...x});
+fetch('/cards.json').then(r=>r.json()).then(t=>{T=t;const q=new URLSearchParams(location.search).get('room');if(q)$('cd').value=q.toUpperCase();if(sess)connect()});
+function connect(){if(es)es.close();es=new EventSource(`/api/events?room=${sess.room}&pid=${sess.pid}&token=${sess.token}`);
+es.onmessage=e=>{V=JSON.parse(e.data);render()};
+es.addEventListener('gone',()=>{es.close();es=null;reset();$('onote').textContent='ルームが見つかりません(終了した可能性があります)'})}
+function reset(){sess=null;V=null;localStorage.removeItem('zg');history.replaceState(null,'',location.pathname);render()}
+async function enter(p,b){const name=$('nm').value.trim()||'プレイヤー';localStorage.setItem('zname',name);const r=await api(p,{...b,name});
+if(r.error){$('onote').textContent=r.error;return false}sess=r;localStorage.setItem('zg',JSON.stringify(r));history.replaceState(null,'','?room='+r.room);connect();return true}
+const copy=b=>{const l=location.origin+'/?room='+sess.room;(navigator.clipboard?navigator.clipboard.writeText(l):Promise.reject()).then(()=>b.textContent='コピーしました ✓',()=>prompt('招待リンク',l))};
+const leave=async()=>{await act('leave');if(es)es.close();reset()};
+$('bcre').onclick=()=>enter('create',{});$('bjoin').onclick=()=>enter('join',{room:$('cd').value.trim().toUpperCase()});
+$('bsolo').onclick=async()=>{if(await enter('create',{}))act('start')};
+$('bcopy').onclick=()=>copy($('bcopy'));$('bcp2').onclick=()=>copy($('bcp2'));$('bs').onclick=()=>act('start');
+$('bback').onclick=leave;$('bleave').onclick=leave;$('home').onclick=leave;$('again').onclick=()=>{if(V&&V.host==V.me)act('start')};
+function render(){const v=!V?'open':V.ph=='lobby'?'lobby':'game';['open','lobby','game'].forEach(x=>$(x).hidden=x!=v);$('end').hidden=!(v=='game'&&V.ph=='over');
+if(v=='lobby')rLobby();if(v=='game')rGame()}
+function rLobby(){$('code').textContent=V.code;
+$('plist').innerHTML=V.lobby.map(x=>`<li>${x.id==V.host?'👑':'👤'} ${esc(x.name)}${x.id==V.me?'(あなた)':''}${x.on?'':' ⚠切断中'}</li>`).join('');
+const c=Math.max(0,3-V.lobby.length),isH=V.host==V.me;$('lnote').textContent=`参加者${V.lobby.length}人`+(c?` + CPU${c}人で開始します`:'で開始します');
+$('bs').hidden=!isH;if(!isH)$('lnote').textContent+=' / ホストの開始を待っています'}
+const cardH=(c,x='')=>`<i>${c.j?'😈':T[c.t].e}</i><span>${c.j?'残業':T[c.t].n}</span>${x}`;
+function rGame(){
+const me=V.mi,pr=V.pr,own=pr&&pr.p==me,n=V.P.length,play=V.ph=='play',hi=own&&pr.hi||null,ex=own&&pr.ex||[];
+const nmL=p=>`<div class="nm">${V.turn==p&&play?'▶ ':''}${esc(V.P[p].name)}${V.P[p].cpu?'🤖':''} ${V.out[p]?'🎉退社':V.P[p].n+'枚'}${V.known==p&&!V.out[p]?' 👀残業持ち':''}</div>`;
+const seat=p=>`<div class="op${V.turn==p&&play?' turn':''}${own&&pr.from==p?' from':''}">${nmL(p)}<div class="row">`+Array.from({length:V.P[p].n},(_,i)=>`<button class="b${own&&pr.from==p?' t':''}${V.hl&&V.hl.p==p&&V.hl.i==i?' h':''}" data-i="${i}"></button>`).join('')+'</div></div>';
+const cnt=me<0?n:n-1,o=Array.from({length:cnt},(_,k)=>me<0?k:(me+1+k)%n),dd=D[cnt]||[[],[],[]];
+['sL','sT','sR'].forEach((id,j)=>$(id).innerHTML=dd[j].map(i=>seat(o[i])).join(''));
+const L=V.last;$('field').innerHTML=L?`<div class="fld"><div class="c">${cardH({t:L.t})}</div><div class="c">${cardH({t:L.t})}</div><div>${esc(V.P[L.p].name)}が<br>出した</div></div>`:'';
+const cn={};V.hand.forEach(c=>{if(!c.j)cn[c.t]=(cn[c.t]||0)+1});
+$('me').innerHTML=me<0?'<div class="nm">👀 観戦中</div>':nmL(me)+'<div class="hand">'+V.hand.map((c,i)=>{const pa=!c.j&&cn[c.t]>1;
+return`<div class="c${c.j?' joker':''}${pa?' pair':''}${hi&&hi.includes(i)?' sel':''}${ex.includes(i)?' ex':''}${V.hl&&V.hl.p==me&&V.hl.i==i?' h':''}" data-i="${i}" data-t="${c.j?-1:c.t}">${cardH(c,(c.g?`<b class="tg">${esc(c.g)}</b>`:'')+(pa?'<u>ペア</u>':''))}</div>`}).join('')+'</div>';
+$('hd').textContent='ルーム '+V.code;
+$('pls').innerHTML=V.P.map((x,p)=>`<div class="${V.turn==p&&play?'cur':''}">${V.turn==p&&play?'▶':'　'}${esc(x.name)}${x.cpu?'🤖':''}${p==me?'(あなた)':''} — ${V.out[p]?'🎉退社':x.n+'枚'}</div>`).join('');
+const fill=(id,a)=>{const e=$(id);e.innerHTML=a.map(x=>`<div>${esc(x)}</div>`).join('')||'<div class="sub">まだありません</div>';e.scrollTop=e.scrollHeight};
+fill('log',V.log||[]);fill('plog',V.pl||[]);rRules(cn);
+$('msg').textContent=own?pr.msg:(V.msg||'')+(pr&&!own?` ⏳${V.P[pr.p].name}の操作待ち`:'');
+const key=pr?pr.n+':'+pr.p:'';
+if(key!==lastKey){lastKey=key;const a=$('act');a.innerHTML='';
+if(own&&pr.opts&&!pr.hi)pr.opts.forEach((l,i)=>{const b=document.createElement('button');b.className='go';b.textContent=l;b.onclick=()=>{a.innerHTML='';respond(i)};a.appendChild(b)})}
+if(V.ph=='over'){$('res').textContent=V.loser==me?'😱 残業確定…あなたの負け!':`🎉 定時退社!\n${V.P[V.loser].name}が残業に…`;
+const b=$('again'),h=V.host==V.me;b.disabled=!h;b.textContent=h?'もう一度':'ホストの操作待ち…'}}
+function rRules(cn){if(!T.length)return;const h=V?V.hand:[],j=h.filter(c=>c.j).length;
+$('rules').innerHTML=T.map((t,i)=>`<div class="rl${selT==i?' on':''}"><b>${t.e}${t.n}</b> ${t.c}枚${cn&&cn[i]?` <em>手札${cn[i]}</em>`:''}<br><span>${t.d}</span></div>`).join('')+
+`<div class="rl${selT==-1?' on':''}"><b>😈残業</b> 1枚${j?' <em>手札にあり!</em>':''}<br><span>最後まで持っていたら負け。労基で暴かれても負け</span></div>
+<div class="rl"><span>ペアを出すと効果発動。手札がなくなったら定時退社🎉</span></div>`}
+function respond(v){const pr=V&&V.pr;if(!pr||pr.p!=V.mi)return;const k=pr.n;if(sent==k)return;sent=k;act('choose',{n:pr.n,v})}
+$('sT').onclick=$('sL').onclick=$('sR').onclick=e=>{const b=e.target.closest('.b.t');if(b)respond(+b.dataset.i)};
+const infoText=t=>t<0?'😈残業: 最後まで持っていたら負け。労基で暴かれても負け':`${T[t].e}${T[t].n}(${T[t].c}枚): ${T[t].d}`;
+const show=t=>{selT=t;$('info').textContent=infoText(t);rRules(V&&V.hand.reduce((m,c)=>(c.j||(m[c.t]=(m[c.t]||0)+1),m),{}))};
+$('info').textContent=stick;
+$('me').onmouseover=e=>{const c=e.target.closest('.c');if(c&&+c.dataset.t!==selT)show(+c.dataset.t)};
+$('me').onclick=e=>{const c=e.target.closest('.c');if(!c)return;const i=+c.dataset.i,pr=V&&V.pr;
+if(pr&&pr.p==V.mi&&pr.hi&&pr.hi.includes(i))return respond(pr.hi.indexOf(i));stick=infoText(+c.dataset.t);show(+c.dataset.t)};
+</script></body></html>
