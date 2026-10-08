@@ -36,10 +36,10 @@ function view(r, pid) {
   if (!S) return v;
   const mi = S.P.findIndex(x => x.id === pid);
   v.P = S.P.map((x, i) => ({ name: x.name, cpu: x.cpu, n: S.hands[i].length }));
-  v.mi = mi; v.hand = mi >= 0 ? S.hands[mi] : [];
+  v.mi = mi; v.hand = mi >= 0 ? S.hands[mi].map(c => { const f = S.fresh[mi].get(c); return f ? { ...c, g: f.l } : c; }) : [];
   v.out = S.out; v.turn = S.turn; v.known = S.known; v.msg = S.msg; v.hl = S.hl; v.log = S.log; v.loser = S.loser;
   v.pr = S.prompt ? (S.prompt.p === mi ? S.prompt : { p: S.prompt.p }) : null;
-  v.pv = mi >= 0 ? S.pv[mi] : '';
+  v.pl = mi >= 0 ? S.pl[mi] : []; v.last = S.last;
   return v;
 }
 function push(r) {
@@ -71,23 +71,26 @@ function startGame(r, hs) {
   d.push({ j: 1 }); shuf(d);
   const hands = P.map(() => []);
   d.forEach((c, i) => hands[i % P.length].push(c));
-  const S = r.S = { ph: 'play', P, hands, out: P.map(() => 0), skip: P.map(() => 0), pv: P.map(() => ''), log: [], turn: 0, known: -1, msg: '', hl: null, prompt: null, loser: -1 };
+  const S = r.S = { ph: 'play', P, hands, out: P.map(() => 0), skip: P.map(() => 0), pl: P.map(() => []), fresh: P.map(() => new Map()), seq: 0, tseq: 0, last: null, log: [], turn: 0, known: -1, msg: '', hl: null, prompt: null, loser: -1 };
   r.pending = null;
   const hd = p => S.hands[p], cpu = p => S.P[p].cpu, PN = p => S.P[p].name;
   const alive = () => S.P.map((_, i) => i).filter(i => !S.out[i]);
   const nxt = i => { const n = S.P.length; let j = (i + 1) % n; while (S.out[j]) j = (j + 1) % n; return j; };
   const live = () => !r.dead && r.S === S;
   const lg = t => { S.log.push(t); if (S.log.length > 80) S.log.shift(); };
-  const mv = (c, f) => { if (c.j && S.known === f) S.known = -1; };
-  const give = (f, to, i) => { const c = hd(f).splice(i, 1)[0]; mv(c, f); hd(to).push(c); return c; };
+  const pm = (p, t) => { const a = S.pl[p]; a.push(t); if (a.length > 40) a.shift(); };
+  const tag = (p, c, l) => S.fresh[p].set(c, { l, s: ++S.seq });
+  const srt = () => S.hands.forEach((h, p) => { if (!cpu(p)) h.sort((a, b) => ord(a) - ord(b)); });
+  const mv = (c, f) => { S.fresh[f].delete(c); if (c.j && S.known === f) S.known = -1; };
+  const give = (f, to, i, l) => { const c = hd(f).splice(i, 1)[0]; mv(c, f); hd(to).push(c); tag(to, c, l); return c; };
   const chk = () => { let s = ''; S.P.forEach((_, p) => { if (!hd(p).length && !S.out[p]) { S.out[p] = 1; s += ` ${PN(p)}は定時退社!🎉`; } }); return s; };
   async function upd(m, ms = 0) {
     if (m != null) S.msg = m;
-    S.hands.forEach((h, p) => { if (!cpu(p)) h.sort((a, b) => ord(a) - ord(b)); });
+    srt();
     push(r);
     if (ms) await wait(ms);
   }
-  function choose(p, msg, opts, from = -1) {
+  function choose(p, msg, opts, from = -1, hi = null, ex = []) {
     const n = ++r.pn;
     return new Promise(res => {
       const len = opts ? opts.length : hd(from).length;
@@ -96,23 +99,24 @@ function startGame(r, hs) {
       r.pending = { n, tm: 0, fin: v => fin(Number.isInteger(v) && v >= 0 && v < len ? v : rnd(len)) };
       r.pending.arm = ms => { clearTimeout(r.pending.tm); r.pending.tm = setTimeout(() => fin(rnd(len)), ms); };
       r.pending.arm(pl && pl.res ? 60000 : 3000);
-      S.prompt = { p, n, msg, opts, from };
+      S.prompt = { p, n, msg, opts, from, hi, ex };
       upd(msg);
     });
   }
   async function pick(p, msg, flt = () => 1, ex = []) {
+    srt();
     const idx = [];
     hd(p).forEach((c, i) => { if (flt(c) && !ex.includes(i)) idx.push(i); });
     if (cpu(p)) { const b = idx.find(i => hd(p)[i].j); return b !== undefined && Math.random() < .7 ? b : idx[rnd(idx.length)]; }
-    const r2 = await choose(p, msg, idx.map(i => nm(hd(p)[i])));
+    const r2 = await choose(p, msg, idx.map(i => nm(hd(p)[i])), -1, idx, ex);
     return idx[r2];
   }
-  function exch(a, t, ia, ib) {
+  function exch(a, t, ia, ib, l) {
     const A = ia.map(i => hd(a)[i]), B = ib.map(i => hd(t)[i]);
     S.hands[a] = hd(a).filter(c => !A.includes(c)); S.hands[t] = hd(t).filter(c => !B.includes(c));
-    A.forEach(c => mv(c, a)); B.forEach(c => mv(c, t)); hd(t).push(...A); hd(a).push(...B);
+    A.forEach(c => mv(c, a)); B.forEach(c => mv(c, t)); hd(t).push(...A); hd(a).push(...B); A.forEach(c => tag(t, c, l)); B.forEach(c => tag(a, c, l));
     const j = l => l.map(nm).join('・');
-    S.pv[a] = `交換: 渡した${j(A)} / 受取${j(B)}`; S.pv[t] = `交換: 渡した${j(B)} / 受取${j(A)}`;
+    pm(a, `${l}: ${PN(t)}に ${j(A)} を渡し、${j(B)} を受け取った`); pm(t, `${l}: ${PN(a)}に ${j(B)} を渡し、${j(A)} を受け取った`);
   }
   async function over(l) { S.ph = 'over'; S.loser = l; S.prompt = null; S.msg = ''; lg(`🏁 ゲーム終了: ${PN(l)}が残業に…`); await upd(); }
   async function run() {
@@ -122,14 +126,15 @@ function startGame(r, hs) {
       if (alive().length < 2) { await over(alive()[0]); break; }
       const a = S.turn;
       if (S.skip[a]) { S.skip[a] = 0; lg(`${PN(a)}は1回休み`); await upd(`${PN(a)}は1回休み…`, 1400); S.turn = nxt(a); continue; }
-      lg(`▶ ${PN(a)}の番`);
+      lg(`▶ ${PN(a)}の番`); S.tseq = S.seq;
       const f = nxt(a); let i;
       if (cpu(a)) { await upd(`${PN(a)}の番`, 800); i = rnd(hd(f).length); }
       else i = await choose(a, `${PN(f)}の手札から1枚引こう`, null, f);
       S.hl = { p: f, i }; await upd(null, 600);
-      const c = hd(f).splice(i, 1)[0]; S.hl = null; mv(c, f); hd(a).push(c); S.pv[a] = `${nm(c)}を引いた`;
+      const c = hd(f).splice(i, 1)[0]; S.hl = null; mv(c, f); hd(a).push(c); tag(a, c, '引いた'); pm(a, `🃏 ${PN(f)}から ${nm(c)} を引いた`); pm(f, `🃏 ${PN(a)}に ${nm(c)} を引かれた`);
       const dm = `${PN(a)}が${PN(f)}から1枚引いた` + chk(); lg(dm); await upd(dm, 900);
       await playPhase(a);
+      S.fresh[a].forEach((f, c) => { if (f.s <= S.tseq) S.fresh[a].delete(c); });
       if (S.ph !== 'play') break;
       S.turn = nxt(a);
     }
@@ -151,7 +156,7 @@ function startGame(r, hs) {
   }
   async function use(a, t) {
     let k = 2; S.hands[a] = hd(a).filter(c => { if (!c.j && c.t === t && k > 0) { k--; return false; } return true; });
-    const kind = T[t].k; lg(`${PN(a)}が${T[t].e}${T[t].n}のペアを出した`);
+    const kind = T[t].k; S.last = { p: a, t }; lg(`${PN(a)}が${T[t].e}${T[t].n}のペアを出した`);
     await upd(`${PN(a)}が${T[t].e}${T[t].n}を出した!`, 900);
     let tg = -1;
     if (NEED.includes(kind)) {
@@ -175,11 +180,11 @@ function startGame(r, hs) {
     }
     else if (k === 'boss') {
       if (!hd(a).length) m += '渡せる手札がなかった';
-      else { const i = await pick(a, '渡すカードを選ぼう'); const c = give(a, t, i); S.pv[a] = `${nm(c)}を渡した`; S.pv[t] = `上司命令: ${nm(c)}を渡された`; m += '上司命令で1枚押し付けた😡'; }
+      else { const i = await pick(a, '渡すカードを選ぼう'); const c = give(a, t, i, '上司命令'); pm(a, `😡 上司命令: ${PN(t)}に ${nm(c)} を渡した`); pm(t, `😡 上司命令: ${PN(a)}から ${nm(c)} を渡された`); m += '上司命令で1枚押し付けた😡'; }
     }
     else if (k === 'love') {
       if (!hd(a).length) m += '渡せる手札がなかった';
-      else { const i = await pick(a, '渡すカードを選ぼう(お互い任意・同時に交換)'), j = await pick(t, '相手に渡すカードを選ぼう(同時に交換)'); exch(a, t, [i], [j]); m += 'お互い1枚ずつ交換💕'; }
+      else { const i = await pick(a, '渡すカードを選ぼう(お互い任意・同時に交換)'), j = await pick(t, '相手に渡すカードを選ぼう(同時に交換)'); exch(a, t, [i], [j], '💕交換'); m += 'お互い1枚ずつ交換💕'; }
     }
     else if (k === 'newbie') {
       const nn = Math.min(2, hd(a).length);
@@ -187,18 +192,18 @@ function startGame(r, hs) {
       else {
         const ia = [];
         for (let x = 0; x < nn; x++) ia.push(await pick(a, `渡すカードを選ぼう(${x + 1}/${nn}枚目)`, () => 1, ia));
-        const j = await pick(t, '相手に渡すカードを1枚選ぼう(同時に交換)'); exch(a, t, ia, [j]); m += `新人教育!${nn}枚と1枚を同時に交換🐣`;
+        const j = await pick(t, '相手に渡すカードを1枚選ぼう(同時に交換)'); exch(a, t, ia, [j], '🐣交換'); m += `新人教育!${nn}枚と1枚を同時に交換🐣`;
       }
     }
     else if (k === 'bribe') {
       if (!hd(a).some(c => !c.j)) m += '渡せるカードがなかった';
-      else { const i = await pick(a, '賄賂にするカードを選ぼう(残業以外)', c => !c.j); const c = give(a, t, i); S.pv[a] = `${nm(c)}を渡した`; S.pv[t] = `賄賂: ${nm(c)}を受け取った`; S.skip[t] = 1; m += `賄賂を渡した💰 ${PN(t)}は1回休み`; }
+      else { const i = await pick(a, '賄賂にするカードを選ぼう(残業以外)', c => !c.j); const c = give(a, t, i, '賄賂'); pm(a, `💰 賄賂: ${PN(t)}に ${nm(c)} を渡した`); pm(t, `💰 賄賂: ${PN(a)}から ${nm(c)} を受け取った(1回休み)`); S.skip[t] = 1; m += `賄賂を渡した💰 ${PN(t)}は1回休み`; }
     }
     else if (k === 'joho') {
       const ops = alive().filter(p => p !== a);
-      for (const o of ops) if (hd(o).length) { const i = await pick(o, `${PN(a)}に渡すカードを選ぼう`); const c = give(o, a, i); S.pv[a] = `情報共有: ${PN(o)}から${nm(c)}を受け取った`; }
+      for (const o of ops) if (hd(o).length) { const i = await pick(o, `${PN(a)}に渡すカードを選ぼう`); const c = give(o, a, i, '情報共有'); pm(a, `📢 情報共有: ${PN(o)}から ${nm(c)} を受け取った`); pm(o, `📢 情報共有: ${PN(a)}に ${nm(c)} を渡した`); }
       await upd('📢情報共有!相手全員が1枚ずつ渡した', 800);
-      for (const o of ops) if (hd(a).length) { const i = await pick(a, `${PN(o)}に渡すカードを選ぼう`); const c = give(a, o, i); S.pv[o] = `情報共有: ${nm(c)}を渡された`; }
+      for (const o of ops) if (hd(a).length) { const i = await pick(a, `${PN(o)}に渡すカードを選ぼう`); const c = give(a, o, i, '情報共有'); pm(o, `📢 情報共有: ${PN(a)}から ${nm(c)} を渡された`); pm(a, `📢 情報共有: ${PN(o)}に ${nm(c)} を渡した`); }
       m = '📢情報共有!全員が1枚ずつ渡し合った';
     }
     else if (k === 'energy') { m = '⚡エナドリ!もう一度労働フェーズ(カードは引かない)'; if (hd(a).some(c => c.j)) { S.known = a; m += ' …残業カードを持っていると申告😰'; } }
