@@ -51,6 +51,7 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 <div style="text-align:center;margin:8px"><button class="go" id="bcopy">招待リンクをコピー</button></div>
 <ul id="plist"></ul><p id="lnote"></p><p class="sub">3人に満たない分はCPUが入ります(最大6人)。</p>
 <div style="display:flex;gap:8px;justify-content:center"><button class="go" id="bs">ゲーム開始</button><button class="go" id="bback">やめる</button></div></section>
+<details id="rd" class="felt" style="margin-top:10px"><summary style="cursor:pointer;font-weight:700">🃏 カード効果・ルールを見る</summary><div id="rules0" style="font-size:13px;line-height:1.7;margin-top:8px"></div></details>
 <div id="game" class="layout" hidden>
 <section class="table"><div id="sT"></div><div id="sL"></div>
 <div class="center"><div id="field"></div><p id="msg" aria-live="polite"></p><div id="act"></div></div>
@@ -73,7 +74,7 @@ try{sess=JSON.parse(localStorage.getItem('zg'))}catch(e){}
 $('nm').value=localStorage.getItem('zname')||'';
 async function api(p,b){try{const r=await fetch('/api/'+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});return await r.json()}catch(e){return{error:'通信に失敗しました'}}}
 const act=(type,x={})=>api('act',{room:sess.room,pid:sess.pid,token:sess.token,type,...x});
-fetch('/cards.json').then(r=>r.json()).then(t=>{T=t;const q=new URLSearchParams(location.search).get('room');if(q)$('cd').value=q.toUpperCase();if(sess)connect()});
+fetch('/cards.json').then(r=>r.json()).then(t=>{T=t;const q=new URLSearchParams(location.search).get('room');if(q)$('cd').value=q.toUpperCase();rRules0();if(sess)connect()});
 function connect(){if(es)es.close();es=new EventSource(`/api/events?room=${sess.room}&pid=${sess.pid}&token=${sess.token}`);
 es.onmessage=e=>{V=JSON.parse(e.data);render()};
 es.addEventListener('gone',()=>{es.close();es=null;reset();$('onote').textContent='ルームが見つかりません(終了した可能性があります)'})}
@@ -87,7 +88,7 @@ $('bsolo').onclick=async()=>{if(await enter('create',{}))act('start')};
 $('bcopy').onclick=()=>copy($('bcopy'));$('bcp2').onclick=()=>copy($('bcp2'));$('bs').onclick=()=>act('start');
 $('bback').onclick=leave;$('bleave').onclick=leave;$('home').onclick=leave;$('again').onclick=()=>{if(V&&V.host==V.me)act('start')};
 function render(){const v=!V?'open':V.ph=='lobby'?'lobby':'game';['open','lobby','game'].forEach(x=>$(x).hidden=x!=v);$('end').hidden=!(v=='game'&&V.ph=='over');
-if(v=='lobby')rLobby();if(v=='game')rGame()}
+$('rd').hidden=v=='game';if(v=='lobby')rLobby();if(v=='game')rGame()}
 function rLobby(){$('code').textContent=V.code;
 $('plist').innerHTML=V.lobby.map(x=>`<li>${x.id==V.host?'👑':'👤'} ${esc(x.name)}${x.id==V.me?'(あなた)':''}${x.on?'':' ⚠切断中'}</li>`).join('');
 const c=Math.max(0,3-V.lobby.length),isH=V.host==V.me;$('lnote').textContent=`参加者${V.lobby.length}人`+(c?` + CPU${c}人で開始します`:'で開始します');
@@ -113,13 +114,14 @@ if(key!==lastKey){lastKey=key;const a=$('act');a.innerHTML='';
 if(own&&pr.opts&&!pr.hi)pr.opts.forEach((l,i)=>{const b=document.createElement('button');b.className='go';b.textContent=l;b.onclick=()=>{a.innerHTML='';respond(i)};a.appendChild(b)})}
 if(V.ph=='over'){$('res').textContent=V.loser==me?'😱 残業確定…あなたの負け!':`🎉 定時退社!\n${V.P[V.loser].name}が残業に…`;
 const b=$('again'),h=V.host==V.me;b.disabled=!h;b.textContent=h?'もう一度':'ホストの操作待ち…'}}
+function rRules0(){$('rules0').innerHTML='<b>ルール</b><br>自分の番に次の人の手札から1枚引き、同じカードが2枚そろっていればペアを出して効果を発動できます(1ターン1ペアまで)。手札がなくなったら定時退社🎉。最後まで残業😈を持っていた人、または社長で暴かれた人の負けです。<br><br>'+T.map(t=>`${t.e}<b>${t.n}</b>(${t.c}枚): ${t.d}`).join('<br>')+'<br>😈<b>残業</b>(1枚): 最後まで持っていたら負け。社長で暴かれても負け'}
 function rRules(cn){if(!T.length)return;const h=V?V.hand:[],j=h.filter(c=>c.j).length;
 $('rules').innerHTML=T.map((t,i)=>`<div class="rl${selT==i?' on':''}"><b>${t.e}${t.n}</b> ${t.c}枚${cn&&cn[i]?` <em>手札${cn[i]}</em>`:''}<br><span>${t.d}</span></div>`).join('')+
-`<div class="rl${selT==-1?' on':''}"><b>😈残業</b> 1枚${j?' <em>手札にあり!</em>':''}<br><span>最後まで持っていたら負け。労基で暴かれても負け</span></div>
+`<div class="rl${selT==-1?' on':''}"><b>😈残業</b> 1枚${j?' <em>手札にあり!</em>':''}<br><span>最後まで持っていたら負け。社長で暴かれても負け</span></div>
 <div class="rl"><span>ペアを出すと効果発動。手札がなくなったら定時退社🎉</span></div>`}
 function respond(v){const pr=V&&V.pr;if(!pr||pr.p!=V.mi)return;const k=pr.n;if(sent==k)return;sent=k;act('choose',{n:pr.n,v})}
 $('sT').onclick=$('sL').onclick=$('sR').onclick=e=>{const b=e.target.closest('.b.t');if(b)respond(+b.dataset.i)};
-const infoText=t=>t<0?'😈残業: 最後まで持っていたら負け。労基で暴かれても負け':`${T[t].e}${T[t].n}(${T[t].c}枚): ${T[t].d}`;
+const infoText=t=>t<0?'😈残業: 最後まで持っていたら負け。社長で暴かれても負け':`${T[t].e}${T[t].n}(${T[t].c}枚): ${T[t].d}`;
 const show=t=>{selT=t;$('info').textContent=infoText(t);rRules(V&&V.hand.reduce((m,c)=>(c.j||(m[c.t]=(m[c.t]||0)+1),m),{}))};
 $('info').textContent=stick;
 $('me').onmouseover=e=>{const c=e.target.closest('.c');if(c&&+c.dataset.t!==selT)show(+c.dataset.t)};

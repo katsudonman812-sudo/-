@@ -63,15 +63,16 @@ function removePlayer(r, pid) {
 
 // ---------------- ゲームエンジン ----------------
 function startGame(r, hs) {
-  const P = hs.map(h => ({ id: h.id, name: h.name, cpu: 0 })), cn = ['たろう', 'はなこ', 'じろう', 'さぶろう'];
+  const P = hs.map(h => ({ id: h.id, name: h.name, cpu: 0 })), cn = ['CPU1', 'CPU2', 'CPU3', 'CPU4'];
   let k = 0;
   while (P.length < 3) P.push({ id: 'cpu' + k, name: cn[k++], cpu: 1 });
+  if (hs.length === 1) shuf(P); // ひとり用: 席順(=手番)をランダムにする
   const d = [];
   T.forEach((t, i) => { for (let x = 0; x < t.c; x++) d.push({ t: i }); });
   d.push({ j: 1 }); shuf(d);
   const hands = P.map(() => []);
   d.forEach((c, i) => hands[i % P.length].push(c));
-  const S = r.S = { ph: 'play', P, hands, out: P.map(() => 0), skip: P.map(() => 0), pl: P.map(() => []), fresh: P.map(() => new Map()), seq: 0, tseq: 0, last: null, log: [], turn: 0, known: -1, msg: '', hl: null, prompt: null, loser: -1 };
+  const S = r.S = { ph: 'play', P, hands, out: P.map(() => 0), skip: P.map(() => 0), nopair: P.map(() => 0), pl: P.map(() => []), fresh: P.map(() => new Map()), seq: 0, tseq: 0, last: null, log: [], turn: 0, known: -1, msg: '', hl: null, prompt: null, loser: -1 };
   r.pending = null;
   const hd = p => S.hands[p], cpu = p => S.P[p].cpu, PN = p => S.P[p].name;
   const alive = () => S.P.map((_, i) => i).filter(i => !S.out[i]);
@@ -133,7 +134,8 @@ function startGame(r, hs) {
       S.hl = { p: f, i }; await upd(null, 600);
       const c = hd(f).splice(i, 1)[0]; S.hl = null; mv(c, f); hd(a).push(c); tag(a, c, '引いた'); pm(a, `🃏 ${PN(f)}から ${nm(c)} を引いた`); pm(f, `🃏 ${PN(a)}に ${nm(c)} を引かれた`);
       const dm = `${PN(a)}が${PN(f)}から1枚引いた` + chk(); lg(dm); await upd(dm, 900);
-      await playPhase(a);
+      if (S.nopair[a]) { S.nopair[a] = 0; lg(`${PN(a)}は賄賂で1回休み(ペアを出せない)`); await upd(`${PN(a)}は1回休み…ペアは出せない`, 1200); }
+      else await playPhase(a);
       S.fresh[a].forEach((f, c) => { if (f.s <= S.tseq) S.fresh[a].delete(c); });
       if (S.ph !== 'play') break;
       S.turn = nxt(a);
@@ -144,11 +146,12 @@ function startGame(r, hs) {
       const cnt = {};
       hd(a).forEach(c => { if (!c.j) cnt[c.t] = (cnt[c.t] || 0) + 1; });
       const ps = Object.keys(cnt).filter(t => cnt[t] > 1).map(Number);
-      if (!ps.length || S.out[a] || alive().length < 2 || !live()) return;
+      if (S.out[a] || alive().length < 2 || !live()) return;
+      if (!ps.length && cpu(a)) return;
       let t;
       if (cpu(a)) { await wait(700); t = ps[rnd(ps.length)]; }
       else {
-        const r2 = await choose(a, 'ペアを出す?(1ターン1ペアまで)', ps.map(t => T[t].e + T[t].n + 'を出す').concat(['パス']));
+        const r2 = await choose(a, ps.length ? 'ペアを出す?(1ターン1ペアまで)' : '出せるペアがありません',  ps.map(t => T[t].e + T[t].n + 'を出す').concat(['パス']));
         if (r2 >= ps.length) return; t = ps[r2];
       }
       if (!await use(a, t)) return;
@@ -176,7 +179,8 @@ function startGame(r, hs) {
       const i = cpu(a) ? rnd(hd(t).length) : await choose(a, `${PN(t)}の手札から公開するカードを1枚選ぼう`, null, t);
       S.hl = { p: t, i }; await upd(null, 700); S.hl = null; const c = hd(t)[i];
       if (c.j) { lg(`　→ ${PN(t)}の手札を公開…残業カード発覚!😈`); await upd(m + '手札を公開…残業カード発覚!😈', 1500); return over(t); }
-      m += `手札を公開: ${nm(c)}(セーフ)`;
+      if (T[c.t].k === 'boss') { give(t, a, i, '社長で公開'); pm(a, `🔍 社長: ${PN(t)}の${nm(c)}が公開され、受け取った`); pm(t, `🔍 社長: ${nm(c)}が公開され、${PN(a)}に渡った`); m += `手札を公開: ${nm(c)} → 上司命令なので${PN(a)}に渡った`; }
+      else m += `手札を公開: ${nm(c)}(セーフ)`;
     }
     else if (k === 'boss') {
       if (!hd(a).length) m += '渡せる手札がなかった';
@@ -197,7 +201,7 @@ function startGame(r, hs) {
     }
     else if (k === 'bribe') {
       if (!hd(a).some(c => !c.j)) m += '渡せるカードがなかった';
-      else { const i = await pick(a, '賄賂にするカードを選ぼう(残業以外)', c => !c.j); const c = give(a, t, i, '賄賂'); pm(a, `💰 賄賂: ${PN(t)}に ${nm(c)} を渡した`); pm(t, `💰 賄賂: ${PN(a)}から ${nm(c)} を受け取った(1回休み)`); S.skip[t] = 1; m += `賄賂を渡した💰 ${PN(t)}は1回休み`; }
+      else { const i = await pick(a, '賄賂にするカードを選ぼう(残業以外)', c => !c.j); const c = give(a, t, i, '賄賂'); pm(a, `💰 賄賂: ${PN(t)}に ${nm(c)} を渡した`); pm(t, `💰 賄賂: ${PN(a)}から ${nm(c)} を受け取った(1回休み)`); S.nopair[t] = 1; m += `賄賂を渡した💰 ${PN(t)}は1回休み(次の番はペアを出せない)`; }
     }
     else if (k === 'joho') {
       const ops = alive().filter(p => p !== a);
@@ -206,7 +210,7 @@ function startGame(r, hs) {
       for (const o of ops) if (hd(a).length) { const i = await pick(a, `${PN(o)}に渡すカードを選ぼう`); const c = give(a, o, i, '情報共有'); pm(o, `📢 情報共有: ${PN(a)}から ${nm(c)} を渡された`); pm(a, `📢 情報共有: ${PN(o)}に ${nm(c)} を渡した`); }
       m = '📢情報共有!全員が1枚ずつ渡し合った';
     }
-    else if (k === 'energy') { m = '⚡エナドリ!もう一度労働フェーズ(カードは引かない)'; if (hd(a).some(c => c.j)) { S.known = a; m += ' …残業カードを持っていると申告😰'; } }
+    else if (k === 'energy') { m = '⚡エナドリ!もう一度労働フェーズ'; if (hd(a).some(c => c.j)) { S.known = a; m += ' …残業カードを持っていると申告😰'; } }
     else if (k === 'tabako') {
       const ti = T.findIndex(x => x.k === 'tabako'), s = [];
       S.P.forEach((_, p) => { const n = hd(p).filter(c => !c.j && c.t === ti).length; if (n) { S.hands[p] = hd(p).filter(c => c.j || c.t !== ti); s.push(`${PN(p)}${n}枚`); } });
