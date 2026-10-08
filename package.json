@@ -1,0 +1,8 @@
+{
+  "name": "zangyo-game",
+  "version": "1.0.0",
+  "description": "残業ゲーム - online card game server (no dependencies)",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}
