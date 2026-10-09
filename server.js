@@ -39,7 +39,7 @@ function view(r, pid) {
   const mi = S.P.findIndex(x => x.id === pid);
   v.P = S.P.map((x, i) => ({ name: x.name, cpu: x.cpu, n: S.hands[i].length }));
   v.mi = mi; v.hand = mi >= 0 ? S.hands[mi].map(c => { const f = S.fresh[mi].get(c); return f ? { ...c, g: f.l } : c; }) : [];
-  v.out = S.out; v.turn = S.turn; v.known = S.known; v.msg = S.msg; v.hl = S.hl; v.log = S.log; v.loser = S.loser;
+  v.out = S.out; v.turn = S.turn; v.phase = S.phase; v.known = S.known; v.msg = S.msg; v.hl = S.hl; v.log = S.log; v.loser = S.loser;
   v.pr = S.prompt ? (S.prompt.p === mi ? S.prompt : { p: S.prompt.p, from: S.prompt.from }) : null;
   v.pl = mi >= 0 ? S.pl[mi] : []; v.last = S.last;
   return v;
@@ -129,13 +129,15 @@ function startGame(r, hs) {
       if (alive().length < 2) { await over(alive()[0]); break; }
       const a = S.turn;
       if (S.skip[a]) { S.skip[a] = 0; lg(`${PN(a)}は1回休み`); await upd(`${PN(a)}は1回休み…`, 1400); S.turn = nxt(a); continue; }
-      lg(`▶ ${PN(a)}の番`); S.tseq = S.seq;
+      lg(`▶ ${PN(a)}のターン`); S.tseq = S.seq;
       const f = nxt(a); let i;
-      if (cpu(a)) { await upd(`${PN(a)}の番`, 800); i = rnd(hd(f).length); }
+      S.phase = ''; await upd(`${PN(a)}のターン`, 1000); S.phase = '労働'; // ターン開始を1秒表示してから「労働」へ
+      if (cpu(a)) i = rnd(hd(f).length);
       else i = await choose(a, `${PN(f)}の手札から1枚引こう`, null, f);
       S.hl = { p: f, i }; await upd(null, 600);
       const c = hd(f).splice(i, 1)[0]; S.hl = null; mv(c, f); hd(a).push(c); tag(a, c, '引いた'); pm(a, `🃏 ${PN(f)}から ${nm(c)} を引いた`); pm(f, `🃏 ${PN(a)}に ${nm(c)} を引かれた`);
       const dm = `${PN(a)}が${PN(f)}から1枚引いた` + chk(); lg(dm); await upd(dm, 900);
+      S.phase = '行動';
       if (S.nopair[a]) { S.nopair[a] = 0; lg(`${PN(a)}は賄賂で1回休み(ペアを出せない)`); await upd(`${PN(a)}は1回休み…ペアは出せない`, 1200); }
       else await playPhase(a);
       S.fresh[a].forEach((f, c) => { if (f.s <= S.tseq) S.fresh[a].delete(c); });
@@ -160,6 +162,7 @@ function startGame(r, hs) {
     }
   }
   async function use(a, t) {
+    S.phase = '効果処理';
     let k = 2; S.hands[a] = hd(a).filter(c => { if (!c.j && c.t === t && k > 0) { k--; return false; } return true; });
     const kind = T[t].k; S.last = { p: a, t }; lg(`${PN(a)}が${T[t].e}${T[t].n}のペアを出した`);
     await upd(`${PN(a)}が${T[t].e}${T[t].n}を出した!`, 900);

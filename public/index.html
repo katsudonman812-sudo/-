@@ -22,6 +22,7 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 .b{width:22px;height:34px;border-radius:4px;border:1px solid #fff;background:repeating-linear-gradient(45deg,#2a4f9a,#2a4f9a 3px,#4670c4 3px,#4670c4 6px);padding:0}
 .b.t{cursor:pointer;border:2px solid var(--acc);animation:p 1s infinite}.b.h{box-shadow:0 0 0 3px var(--acc);transform:translateY(-4px)}@keyframes p{50%{transform:translateY(-3px)}}
 #msg{margin:0;font-size:15px;font-weight:700;min-height:2.6em}#act{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.trn{font-weight:800;font-size:15px;background:#0007;border-radius:999px;padding:3px 14px;color:var(--acc)}.trn:empty{display:none}
 .fld{display:flex;gap:4px;align-items:center;font-size:11px}.fld .c{width:44px;height:60px}.fld .c i{font-size:20px}
 .mine{grid-area:M;background:#0003;border-radius:10px;padding:6px 8px}.hand{display:flex;flex-wrap:wrap;gap:6px;padding-top:8px}
 .c{position:relative;width:62px;height:88px;border-radius:7px;background:#fff;color:#222;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;box-shadow:0 1px 3px #0007;border:2px solid #fff;box-sizing:border-box;cursor:pointer}
@@ -57,7 +58,7 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 <details id="rd" class="felt" style="margin-top:10px"><summary style="cursor:pointer;font-weight:700">🃏 カード効果・ルールを見る</summary><div id="rules0" style="font-size:13px;line-height:1.7;margin-top:8px"></div></details>
 <div id="game" class="layout" hidden>
 <section class="table"><div id="sT"></div><div id="sL"></div>
-<div class="center"><div id="field"></div><p id="msg" aria-live="polite"></p><div id="act"></div></div>
+<div class="center"><div id="trn" class="trn"></div><div id="field"></div><p id="msg" aria-live="polite"></p><div id="act"></div></div>
 <div id="sR"></div>
 <div class="mine"><div id="me"></div><div id="info"></div><div class="sub" id="ctl" style="margin-top:6px"><button class="go" id="bshuf">🔀シャッフル</button> <button class="go" id="bsort">整列</button> ドラッグ、またはタップ→移動先をタップで並び替え</div></div></section>
 <aside class="side">
@@ -104,6 +105,7 @@ const nmL=p=>`<div class="nm">${V.turn==p&&play?'▶ ':''}${esc(V.P[p].name)}${V
 const seat=(p,v)=>`<div class="op${V.turn==p&&play?' turn':''}${own&&pr.from==p?' from':''}">${nmL(p)}<div class="row fan ${v}${own&&pr.from==p?' t':''}">`+Array.from({length:V.P[p].n},(_,i)=>`<button class="b${own&&pr.from==p?' t':''}${V.hl&&V.hl.p==p&&V.hl.i==i?' h':''}" data-i="${i}"></button>`).join('')+'</div></div>';
 const cnt=me<0?n:n-1,o=Array.from({length:cnt},(_,k)=>me<0?k:(me+1+k)%n),dd=D[cnt]||[[],[],[]];
 ['sL','sT','sR'].forEach((id,j)=>$(id).innerHTML=dd[j].map(i=>seat(o[i],j==1?'h':'v')).join(''));
+$('trn').textContent=V.phase&&play&&V.turn>=0?`【${V.P[V.turn].name}】のターン　【${V.phase}】中`:'';
 const L=V.last;$('field').innerHTML=L?`<div class="fld"><div class="c">${cardH({t:L.t})}</div><div class="c">${cardH({t:L.t})}</div><div>${esc(V.P[L.p].name)}が<br>出した</div></div>`:'';
 const cn={};V.hand.forEach(c=>{if(!c.j)cn[c.t]=(cn[c.t]||0)+1});
 $('me').innerHTML=me<0?'<div class="nm">👀 観戦中</div>':nmL(me)+'<div class="hand">'+V.hand.map((c,i)=>{const pa=!c.j&&cn[c.t]>1;
