@@ -24,7 +24,7 @@ const cleanKey = s => String(s || '').replace(/[\s<>&"'`\/\\?#%]/g, '').slice(0,
 function mkRoom(key) {
   let code = key;
   if (!code) do { code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[rnd(24)]).join(''); } while (rooms.has(code));
-  const r = { code, pl: [], S: null, pending: null, pn: 0, last: Date.now() };
+  const r = { code, pl: [], S: null, pending: null, pn: 0, last: Date.now(), cfg: { cpu: -1, counts: T.map(t => t.c) } };
   rooms.set(code, r);
   return r;
 }
@@ -35,7 +35,8 @@ function addPlayer(r, name) {
 }
 function view(r, pid) {
   const S = r.S;
-  const v = { code: r.code, me: pid, host: r.pl[0] && r.pl[0].id, ph: S ? S.ph : 'lobby', lobby: r.pl.map(p => ({ id: p.id, name: p.name, on: !!p.res })) };
+  const v = { code: r.code, me: pid, host: r.pl[0] && r.pl[0].id, ph: S ? S.ph : 'lobby', lobby: r.pl.map(p => ({ id: p.id, name: p.name, on: !!p.res })), cfg: r.cfg };
+  v.counts = S ? S.counts : r.cfg.counts;
   if (!S) return v;
   const mi = S.P.findIndex(x => x.id === pid);
   v.P = S.P.map((x, i) => ({ name: x.name, cpu: x.cpu, n: S.hands[i].length }));
@@ -107,18 +108,22 @@ function startGame(r, hs, dbg) {
   const D = dbg ? debugDeal(dbg) : null;
   const P = hs.map(h => ({ id: h.id, name: h.name, cpu: 0 })), cn = shuf(ROBOTS.slice()).map(n => '🤖' + n); // CPU名: 実在ロボットの名前からランダム(重複なし)
   let k = 0;
-  while (P.length < (D ? D.n : 3)) P.push({ id: 'cpu' + k, name: cn[k++], cpu: 1 });
+  const cfg = r.cfg, want = D ? D.n : (cfg.cpu >= 0 ? Math.min(hs.length + cfg.cpu, 6) : Math.max(3, hs.length));
+  if (want < 2) throw new Error('2人以上必要です。CPUを増やすか、人を集めてください');
+  while (P.length < want) P.push({ id: 'cpu' + k, name: cn[k++], cpu: 1 });
   if (hs.length === 1 && !D) shuf(P); // ひとり用: 席順(=手番)をランダムにする
   let hands;
   if (D) hands = D.hands;
   else {
     const d = [];
-    T.forEach((t, i) => { for (let x = 0; x < t.c; x++) d.push({ t: i }); });
-    d.push({ j: 1 }); shuf(d);
+    T.forEach((t, i) => { for (let x = 0; x < cfg.counts[i]; x++) d.push({ t: i }); });
+    d.push({ j: 1 });
+    if (d.length < P.length) throw new Error(`カードが足りません(合計${d.length}枚)。人数${P.length}人に配れるよう、枚数を増やしてください`);
+    shuf(d);
     hands = P.map(() => []);
     d.forEach((c, i) => hands[i % P.length].push(c));
   }
-  const S = r.S = { ph: 'play', P, hands, out: P.map(() => 0), skip: P.map(() => 0), nopair: P.map(() => 0), pl: P.map(() => []), fresh: P.map(() => new Map()), seq: 0, tseq: 0, last: null, log: [], turn: D ? D.first : 0, known: -1, msg: '', hl: null, prompt: null, loser: -1 };
+  const S = r.S = { ph: 'play', counts: D ? T.map(t => t.c) : cfg.counts.slice(), P, hands, out: P.map(() => 0), skip: P.map(() => 0), nopair: P.map(() => 0), pl: P.map(() => []), fresh: P.map(() => new Map()), seq: 0, tseq: 0, last: null, log: [], turn: D ? D.first : 0, known: -1, msg: '', hl: null, prompt: null, loser: -1 };
   r.pending = null;
   const hd = p => S.hands[p], cpu = p => S.P[p].cpu, PN = p => S.P[p].name;
   const alive = () => S.P.map((_, i) => i).filter(i => !S.out[i]);
@@ -350,6 +355,10 @@ http.createServer(async (req, res) => {
           if (!ok) return json(res, { error: 'locked' });
           if (q && q.p === i && q.hi) { const nw = k => b.perm.indexOf(k); q.hi.forEach((k, j) => { q.hi[j] = nw(k); }); (q.ex || []).forEach((k, j) => { q.ex[j] = nw(k); }); } // 選択中の番号も追従させる
           const nh = b.perm.map(k => h[k]); h.splice(0, h.length, ...nh); push(r);
+        } else if (b.type === 'cfg' && r.pl[0] === p && (!S || S.ph === 'over')) {
+          const c = parseInt(b.cpu), ok = Array.isArray(b.counts) && b.counts.length === T.length && b.counts.every(k => Number.isInteger(k) && k >= 0 && k <= 8 && k % 2 === 0); // 奇数だとペアにならない札が残り、ゲームが終わらなくなる
+          if (!ok || !(c >= -1 && c <= 5)) return json(res, { error: 'bad cfg' });
+          r.cfg = { cpu: c, counts: b.counts.slice() }; push(r);
         } else if (b.type === 'leave') removePlayer(r, p.id);
         return json(res, { ok: true });
       }
