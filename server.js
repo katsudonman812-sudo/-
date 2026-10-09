@@ -18,9 +18,11 @@ const ord = c => c.j ? 99 : c.t;
 const nm = c => c.j ? '😈サボり' : T[c.t].e + T[c.t].n;
 const clean = s => String(s || '').replace(/[<>&"'`]/g, '').trim().slice(0, 12);
 
-function mkRoom() {
-  let code;
-  do { code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[rnd(24)]).join(''); } while (rooms.has(code));
+const cleanKey = s => String(s || '').replace(/[\s<>&"'`\/\\?#%]/g, '').slice(0, 12).toUpperCase();
+
+function mkRoom(key) {
+  let code = key;
+  if (!code) do { code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[rnd(24)]).join(''); } while (rooms.has(code));
   const r = { code, pl: [], S: null, pending: null, pn: 0, last: Date.now() };
   rooms.set(code, r);
   return r;
@@ -265,11 +267,20 @@ http.createServer(async (req, res) => {
       const b = await body(req);
       if (u.pathname === '/api/create') {
         if (rooms.size > 500) return json(res, { error: 'サーバーが混み合っています' });
-        const r = mkRoom(), p = addPlayer(r, b.name);
+        const key = cleanKey(b.key);
+        if (key && key.length < 3) return json(res, { error: 'キーワードは3〜12文字で入力してください(空欄ならランダム)' });
+        if (key && rooms.has(key)) return json(res, { error: 'そのキーワードはすでに使われています。別のキーワードにしてください' });
+        const r = mkRoom(key), p = addPlayer(r, b.name);
         return json(res, { room: r.code, pid: p.id, token: p.token });
       }
       if (u.pathname === '/api/join') {
-        const r = rooms.get(String(b.room || '').toUpperCase());
+        const key = cleanKey(b.room);
+        let r = rooms.get(key);
+        if (!r && b.create) { // 同じ名前の部屋がなければ、その名前で作る
+          if (key.length < 3) return json(res, { error: '部屋の名前は3〜12文字で入力してください' });
+          if (rooms.size > 500) return json(res, { error: 'サーバーが混み合っています' });
+          r = mkRoom(key);
+        }
         if (!r) return json(res, { error: 'ルームが見つかりません' });
         if (r.S && r.S.ph === 'play') return json(res, { error: 'ゲーム中のため参加できません。終わるまで待ってください' });
         if (r.pl.length >= 6) return json(res, { error: 'ルームが満員です(最大6人)' });

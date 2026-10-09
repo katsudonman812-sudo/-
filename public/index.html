@@ -11,7 +11,7 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 .hero button{display:block;width:100%;max-width:300px;margin:10px auto;font-size:17px;padding:14px}
 .hero input{display:block;width:100%;max-width:300px;box-sizing:border-box;margin:8px auto;padding:12px;font-size:16px;border-radius:10px;border:1px solid #8886;background:transparent;color:inherit;text-align:center}
 .hero .join{display:flex;gap:8px;max-width:300px;margin:10px auto}.hero .join input{margin:0;text-transform:uppercase}.hero .join button{width:auto;margin:0;padding:0 18px}
-#code{font-size:36px;letter-spacing:6px;font-weight:800;text-align:center}#plist{list-style:none;padding:0;font-size:16px}#plist li{padding:6px 0;border-bottom:1px solid #fff3}
+#code{font-size:30px;letter-spacing:3px;word-break:break-all;font-weight:800;text-align:center}#plist{list-style:none;padding:0;font-size:16px}#plist li{padding:6px 0;border-bottom:1px solid #fff3}
 .sub{font-size:12px;opacity:.75}button.go{font-size:14px;padding:8px 14px;border:0;border-radius:999px;background:var(--acc);color:#222;font-weight:700;cursor:pointer}
 .layout{display:grid;grid-template-columns:1fr 300px;gap:10px;align-items:start}
 .table{display:grid;grid-template-columns:var(--sw) 1fr var(--sw);grid-template-areas:"T T T" "L C R" "M M M";gap:6px;background:radial-gradient(ellipse at 50% 45%,#2f7a52,#1a4a32 70%);border:3px solid #0d2a1c;border-radius:14px;padding:10px;min-height:520px}
@@ -46,11 +46,11 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 <p>サボり😈を押し付け合う、ババ抜きベースのカードゲーム</p>
 <input id="nm" maxlength="12" placeholder="なまえ">
 <button class="go" id="bsolo">ひとりで遊ぶ(CPU対戦)</button>
-<button class="go" id="bcre">ルームを作って友達と遊ぶ</button>
-<div class="join"><input id="cd" maxlength="4" placeholder="ルームコード"><button class="go" id="bjoin">参加</button></div>
+<input id="kw" maxlength="12" placeholder="部屋の名前(3〜12文字)">
+<button class="go" id="bcre">部屋に入る(なければ作る)</button>
 <p id="onote" class="sub"></p></section>
 <section id="lobby" class="felt" hidden>
-<div class="nm">ルームコード</div><div id="code"></div>
+<div class="nm">部屋の名前</div><div id="code"></div>
 <div style="text-align:center;margin:8px"><button class="go" id="bcopy">招待リンクをコピー</button></div>
 <ul id="plist"></ul><p id="lnote"></p><p class="sub">3人に満たない分はCPUが入ります(最大6人)。</p>
 <div style="display:flex;gap:8px;justify-content:center"><button class="go" id="bs">ゲーム開始</button><button class="go" id="bback">やめる</button></div></section>
@@ -77,16 +77,16 @@ try{sess=JSON.parse(localStorage.getItem('zg'))}catch(e){}
 $('nm').value=localStorage.getItem('zname')||'';
 async function api(p,b){try{const r=await fetch('/api/'+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});return await r.json()}catch(e){return{error:'通信に失敗しました'}}}
 const act=(type,x={})=>api('act',{room:sess.room,pid:sess.pid,token:sess.token,type,...x});
-fetch('/cards.json').then(r=>r.json()).then(t=>{T=t;const q=new URLSearchParams(location.search).get('room');if(q)$('cd').value=q.toUpperCase();rRules0();if(sess)connect()});
-function connect(){if(es)es.close();es=new EventSource(`/api/events?room=${sess.room}&pid=${sess.pid}&token=${sess.token}`);
+fetch('/cards.json').then(r=>r.json()).then(t=>{T=t;const q=new URLSearchParams(location.search).get('room');if(q)$('kw').value=q.toUpperCase();rRules0();if(sess)connect()});
+function connect(){if(es)es.close();es=new EventSource(`/api/events?room=${encodeURIComponent(sess.room)}&pid=${sess.pid}&token=${sess.token}`);
 es.onmessage=e=>{V=JSON.parse(e.data);render()};
 es.addEventListener('gone',()=>{es.close();es=null;reset();$('onote').textContent='ルームが見つかりません(終了した可能性があります)'})}
 function reset(){sess=null;V=null;localStorage.removeItem('zg');history.replaceState(null,'',location.pathname);render()}
 async function enter(p,b){const name=$('nm').value.trim()||'プレイヤー';localStorage.setItem('zname',name);const r=await api(p,{...b,name});
-if(r.error){$('onote').textContent=r.error;return false}sess=r;localStorage.setItem('zg',JSON.stringify(r));history.replaceState(null,'','?room='+r.room);connect();return true}
-const copy=b=>{const l=location.origin+'/?room='+sess.room;(navigator.clipboard?navigator.clipboard.writeText(l):Promise.reject()).then(()=>b.textContent='コピーしました ✓',()=>prompt('招待リンク',l))};
+if(r.error){$('onote').textContent=r.error;return false}sess=r;localStorage.setItem('zg',JSON.stringify(r));history.replaceState(null,'','?room='+encodeURIComponent(r.room));connect();return true}
+const copy=b=>{const l=location.origin+'/?room='+encodeURIComponent(sess.room);(navigator.clipboard?navigator.clipboard.writeText(l):Promise.reject()).then(()=>b.textContent='コピーしました ✓',()=>prompt('招待リンク',l))};
 const leave=async()=>{await act('leave');if(es)es.close();reset()};
-$('bcre').onclick=()=>enter('create',{});$('bjoin').onclick=()=>enter('join',{room:$('cd').value.trim().toUpperCase()});
+$('bcre').onclick=()=>{const k=$('kw').value.trim();if(!k)return $('onote').textContent='部屋の名前を入力してください(友達と同じ名前にすると、同じ部屋に入れます)';enter('join',{room:k,create:1})};
 $('bsolo').onclick=async()=>{if(await enter('create',{}))act('start')};
 $('bcopy').onclick=()=>copy($('bcopy'));$('bcp2').onclick=()=>copy($('bcp2'));$('bs').onclick=()=>act('start');
 $('bback').onclick=leave;$('bleave').onclick=leave;$('home').onclick=leave;$('again').onclick=()=>{if(V&&V.host==V.me)act('start')};
