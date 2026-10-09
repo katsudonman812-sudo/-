@@ -46,15 +46,21 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 .rmb h4{margin:12px 0 4px;color:var(--acc);font-size:14.5px}.rmb h4:first-of-type{margin-top:0}.rmb ul{margin:4px 0;padding-left:20px}.rmb .x{position:sticky;top:0;float:right}
 .rt table{border-collapse:collapse;width:100%;margin:6px 0;font-size:12.5px}.rt th,.rt td{border:1px solid #fff4;padding:4px 6px;text-align:center}.rt th{background:#fff2}.rt td.w{color:#7fe3a1;font-weight:700}.rt td.l{color:#ff9aa8;font-weight:700}
 #rfab{position:fixed;right:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:20;box-shadow:0 2px 8px #0008}
+#dbg input,#dbg select{padding:6px;border-radius:8px;border:1px solid #fff5;background:#0003;color:inherit;font-size:14px}.drow{display:flex;gap:6px;align-items:center;margin:5px 0}.drow b{width:64px;font-size:12px}.drow .dh{flex:1;min-width:0}.drow .dn{width:64px}.dg{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0}
 </style></head><body>
 <main>
 <section id="open" class="felt hero"><div class="big">💼</div><h2>サボりゲーム</h2>
-<p>サボり😈を押し付け合う、ババ抜きベースのカードゲーム</p>
+<p>サボり😴を押し付け合う、ババ抜きベースのカードゲーム</p>
 <input id="nm" maxlength="12" placeholder="なまえ">
 <button class="go" id="bsolo">ひとりで遊ぶ(CPU対戦)</button>
 <input id="kw" maxlength="12" placeholder="部屋の名前(3〜12文字)">
 <button class="go" id="bcre">みんなで遊ぶ</button>
 <p id="onote" class="sub"></p></section>
+<details id="dbg" class="felt" hidden style="margin-top:10px"><summary style="cursor:pointer;font-weight:700">🛠 デバッグ(条件を指定してひとりで遊ぶ)</summary>
+<div class="dg"><label>CPUの人数 <select id="dcpu"></select></label> <label>最初の手番 <select id="dfirst"></select></label></div>
+<div id="drows"></div>
+<p class="sub">手札の書き方: カード名と枚数をカンマ区切りで。例「サボり,会議×2,賄賂2」。空欄=ランダム。枚数欄=その人の手札の枚数(空欄=余りを均等に配る)。左から順に並び、CPUの手札は左から1枚目・2枚目…が引く位置です。自分が引く相手はCPU席1です。</p>
+<p class="sub" id="dnames"></p><button class="go" id="dgo">この条件で開始</button></details>
 <section id="lobby" class="felt" hidden>
 <div class="nm">部屋の名前</div><div id="code"></div>
 <div style="text-align:center;margin:8px"><button class="go" id="bcopy">招待リンクをコピー</button></div>
@@ -78,6 +84,8 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 <button class="go" id="rfab">📖 ルール</button>
 <div id="end" hidden><div><span id="res"></span><br><button class="go" id="again"></button><button class="go" id="home">オープニングに戻る</button></div></div>
 <script>
+if(/[?&]debug=1/.test(location.search))sessionStorage.setItem('zdbg','1');if(/[?&]debug=0/.test(location.search))sessionStorage.removeItem('zdbg');
+const DEBUG=sessionStorage.getItem('zdbg')==='1';
 let mv=null,T=[],V=null,sess=null,es=null,sent='',lastKey='',selT=-2,stick='手札にカーソルを合わせる(スマホはタップ)と効果が表示されます';
 const $=id=>document.getElementById(id),D={1:[[],[0],[]],2:[[0],[],[1]],3:[[0],[1],[2]],4:[[0],[1,2],[3]],5:[[0,1],[2],[3,4]],6:[[0,1],[2,3],[4,5]]};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -85,26 +93,33 @@ try{sess=JSON.parse(localStorage.getItem('zg'))}catch(e){}
 $('nm').value=localStorage.getItem('zname')||'';
 async function api(p,b){try{const r=await fetch('/api/'+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});return await r.json()}catch(e){return{error:'通信に失敗しました'}}}
 const act=(type,x={})=>api('act',{room:sess.room,pid:sess.pid,token:sess.token,type,...x});
-fetch('/cards.json').then(r=>r.json()).then(t=>{T=t;const q=new URLSearchParams(location.search).get('room');if(q)$('kw').value=q.toUpperCase();rRules0();if(sess)connect()});
+fetch('/cards.json').then(r=>r.json()).then(t=>{T=t;$('dnames').textContent='使えるカード名: '+t.map(x=>x.n+'('+x.c+'枚)').join('、')+'、サボり(1枚)';const q=new URLSearchParams(location.search).get('room');if(q)$('kw').value=q.toUpperCase();rRules0();if(sess)connect()});
 function connect(){if(es)es.close();es=new EventSource(`/api/events?room=${encodeURIComponent(sess.room)}&pid=${sess.pid}&token=${sess.token}`);
 es.onmessage=e=>{V=JSON.parse(e.data);render()};
 es.addEventListener('gone',()=>{es.close();es=null;reset();$('onote').textContent='ルームが見つかりません(終了した可能性があります)'})}
 function reset(){sess=null;V=null;localStorage.removeItem('zg');history.replaceState(null,'',location.pathname);render()}
-async function enter(p,b){const name=$('nm').value.trim()||'プレイヤー';localStorage.setItem('zname',name);const r=await api(p,{...b,name});
+async function enter(p,b){const name=$('nm').value.trim();localStorage.setItem('zname',name);const r=await api(p,{...b,name});
 if(r.error){$('onote').textContent=r.error;return false}sess=r;localStorage.setItem('zg',JSON.stringify(r));history.replaceState(null,'','?room='+encodeURIComponent(r.room));connect();return true}
 const copy=b=>{const l=location.origin+'/?room='+encodeURIComponent(sess.room);(navigator.clipboard?navigator.clipboard.writeText(l):Promise.reject()).then(()=>b.textContent='コピーしました ✓',()=>prompt('招待リンク',l))};
 const leave=async()=>{await act('leave');if(es)es.close();reset()};
 $('bcre').onclick=()=>{const k=$('kw').value.trim();if(!k)return $('onote').textContent='部屋の名前を入力してください(友達と同じ名前にすると、同じ部屋に入れます)';enter('join',{room:k,create:1})};
 $('bsolo').onclick=async()=>{if(await enter('create',{}))act('start')};
 $('bcopy').onclick=()=>copy($('bcopy'));$('bcp2').onclick=()=>copy($('bcp2'));$('bs').onclick=()=>act('start');
+// ---- デバッグ(?debug=1 のときだけ表示) ----
+function dRows(){const n=+$('dcpu').value,box=$('drows');while(box.children.length>n+1)box.lastChild.remove();
+for(let p=box.children.length;p<=n;p++){const d=document.createElement('div');d.className='drow';d.innerHTML=`<b>${p?'CPU席'+p:'自分'}</b><input class="dh" placeholder="手札(空欄=ランダム)"><input class="dn" type="number" min="0" max="52" placeholder="枚数">`;box.appendChild(d)}
+const f=$('dfirst'),old=f.value;f.innerHTML='';for(let p=0;p<=n;p++)f.add(new Option(p?'CPU席'+p:'自分',p));f.value=old&&old<=n?old:0}
+if(DEBUG){const c=$('dcpu');for(let i=1;i<=5;i++)c.add(new Option(i+'人',i));c.value=2;c.onchange=dRows;dRows();
+$('dgo').onclick=async()=>{const rows=[...$('drows').children],spec={cpu:+$('dcpu').value,first:+$('dfirst').value,hands:rows.map(r=>r.querySelector('.dh').value),sizes:rows.map(r=>r.querySelector('.dn').value)};
+if(!await enter('create',{}))return;const r=await act('start',{debug:spec});if(r&&r.error){await leave();$('onote').textContent=r.error}}}
 $('bback').onclick=leave;$('bleave').onclick=leave;$('home').onclick=leave;$('again').onclick=()=>{if(V&&V.host==V.me)act('start')};
-function render(){const v=!V?'open':V.ph=='lobby'?'lobby':'game';['open','lobby','game'].forEach(x=>$(x).hidden=x!=v);$('end').hidden=!(v=='game'&&V.ph=='over');
+function render(){const v=!V?'open':V.ph=='lobby'?'lobby':'game';$('dbg').hidden=!(DEBUG&&v=='open');['open','lobby','game'].forEach(x=>$(x).hidden=x!=v);$('end').hidden=!(v=='game'&&V.ph=='over');
 $('rd').hidden=v=='game';if(v=='lobby')rLobby();if(v=='game')rGame()}
 function rLobby(){$('code').textContent=V.code;
 $('plist').innerHTML=V.lobby.map(x=>`<li>${x.id==V.host?'👑':'👤'} ${esc(x.name)}${x.id==V.me?'(あなた)':''}${x.on?'':' ⚠切断中'}</li>`).join('');
 const c=Math.max(0,3-V.lobby.length),isH=V.host==V.me;$('lnote').textContent=`参加者${V.lobby.length}人`+(c?` + CPU${c}人で開始します`:'で開始します');
 $('bs').hidden=!isH;if(!isH)$('lnote').textContent+=' / ホストの開始を待っています'}
-const cardH=(c,x='')=>`<i>${c.j?'😈':T[c.t].e}</i><span>${c.j?'サボり':T[c.t].n}</span>${x}`;
+const cardH=(c,x='')=>`<i>${c.j?'😴':T[c.t].e}</i><span>${c.j?'サボり':T[c.t].n}</span>${x}`;
 function rGame(){
 if(mv!==null&&mv>=V.hand.length)mv=null;$('ctl').hidden=V.mi<0;
 const me=V.mi,pr=V.pr,own=pr&&pr.p==me,n=V.P.length,play=V.ph=='play',hi=own&&pr.hi||null,ex=own&&pr.ex||[];
@@ -136,22 +151,22 @@ return `<h4>■ ターンの流れ</h4><p>手番は時計回りに進みます�
 <li>退社した人は、カード効果の対象になりません(指名・交換・受け渡しなど)。</li></ul>
 <h4>■ ゲームの終了条件</h4>
 <p>どちらかを満たすと、ゲームは終了します。</p>
-<ul><li>i. 社長の効果で、サボり😈カードが公開される</li><li>ii. サボりを含め、手札を持っている人が1人だけになる</li></ul>
+<ul><li>i. 社長の効果で、サボり😴カードが公開される</li><li>ii. サボりを含め、手札を持っている人が1人だけになる</li></ul>
 <h4>■ 勝利判定</h4>
 <table><tr><th></th><th>サボりが公開された場合</th><th>手札を持っている人が1人</th></tr>
 <tr><td class="w">勝者</td><td>サボりを公開させた人</td><td>退社した人全員</td></tr>
 <tr><td class="l">敗者</td><td>サボりを持っていた人</td><td>サボりを持っていた人</td></tr></table>
-<h4>■ カード効果</h4><ul>${cards}<li>😈<b>サボり</b>(1枚): ババ。ペアにならず、場には出せません。社長の効果で公開されると敗北します。</li></ul>`}
+<h4>■ カード効果</h4><ul>${cards}<li>😴<b>サボり</b>(1枚): ババ。ペアにならず、場には出せません。社長の効果で公開されると敗北します。</li></ul>`}
 function rRules0(){$('rules0').innerHTML='<div class="rt">'+ruleHtml()+'</div>'}
 const rOpen=on=>{if(on)$('rmc').innerHTML=ruleHtml();$('rm').hidden=!on};
 $('rfab').onclick=()=>rOpen(true);$('rmx').onclick=()=>rOpen(false);$('rm').onclick=e=>{if(e.target==$('rm'))rOpen(false)};document.addEventListener('keydown',e=>{if(e.key=='Escape')rOpen(false)});
 function rRules(cn){if(!T.length)return;const h=V?V.hand:[],j=h.filter(c=>c.j).length;
 $('rules').innerHTML=T.map((t,i)=>`<div class="rl${selT==i?' on':''}"><b>${t.e}${t.n}</b> ${t.c}枚${cn&&cn[i]?` <em>手札${cn[i]}</em>`:''}<br><span>${t.d}</span></div>`).join('')+
-`<div class="rl${selT==-1?' on':''}"><b>😈サボり</b> 1枚${j?' <em>手札にあり!</em>':''}<br><span>最後まで持っていたら負け。社長で暴かれても負け</span></div>
+`<div class="rl${selT==-1?' on':''}"><b>😴サボり</b> 1枚${j?' <em>手札にあり!</em>':''}<br><span>最後まで持っていたら負け。社長で暴かれても負け</span></div>
 <div class="rl"><span>ペアを出すと効果発動。手札がなくなったら定時退社🎉</span></div>`}
 function respond(v){const pr=V&&V.pr;if(!pr||pr.p!=V.mi)return;const k=pr.n;if(sent==k)return;sent=k;act('choose',{n:pr.n,v})}
 $('sT').onclick=$('sL').onclick=$('sR').onclick=e=>{const b=e.target.closest('.b.t');if(b)respond(+b.dataset.i)};
-const infoText=t=>t<0?'😈サボり: 最後まで持っていたら負け。社長で暴かれても負け':`${T[t].e}${T[t].n}(${T[t].c}枚): ${T[t].d}`;
+const infoText=t=>t<0?'😴サボり: 最後まで持っていたら負け。社長で暴かれても負け':`${T[t].e}${T[t].n}(${T[t].c}枚): ${T[t].d}`;
 const show=t=>{selT=t;$('info').textContent=infoText(t);rRules(V&&V.hand.reduce((m,c)=>(c.j||(m[c.t]=(m[c.t]||0)+1),m),{}))};
 $('info').textContent=stick;
 $('me').onmouseover=e=>{const c=e.target.closest('.c');if(c&&+c.dataset.t!==selT)show(+c.dataset.t)};

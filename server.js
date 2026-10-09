@@ -65,17 +65,60 @@ function removePlayer(r, pid) {
 }
 
 // ---------------- ゲームエンジン ----------------
-function startGame(r, hs) {
+// デバッグ用: 手札・CPU人数・最初の手番を指定して配る(ひとりで遊ぶときだけ使える)
+function debugDeal(spec) {
+  const cpuN = Math.min(5, Math.max(1, parseInt(spec.cpu) || 2)), n = 1 + cpuN;
+  const lab = p => (p === 0 ? '自分' : 'CPU席' + p);
+  const deck = [];
+  T.forEach((t, i) => { for (let x = 0; x < t.c; x++) deck.push({ t: i }); });
+  deck.push({ j: 1 });
+  const take = (name, p) => {
+    let k;
+    if (['サボり', 'joker', 'ジョーカー', '😴'].includes(name)) k = deck.findIndex(c => c.j);
+    else {
+      const ti = T.findIndex(t => t.n === name || t.k === name);
+      if (ti < 0) throw new Error(`${lab(p)}の手札: 「${name}」というカードはありません(使える名前: ${T.map(t => t.n).join('、')}、サボり)`);
+      k = deck.findIndex(c => c.t === ti);
+    }
+    if (k < 0) throw new Error(`${lab(p)}の手札: 「${name}」の枚数が足りません(カードの総枚数を超えています)`);
+    return deck.splice(k, 1)[0];
+  };
+  const lists = spec.hands || [], sizes = spec.sizes || [], hands = [];
+  for (let p = 0; p < n; p++) {
+    const toks = String(lists[p] || '').split(/[,、，\s]+/).filter(Boolean);
+    hands.push(toks.length ? toks.flatMap(tok => { const m = tok.match(/^(.*?)(?:[×xX*＊]?(\d+))?$/); return Array.from({ length: m[2] ? +m[2] : 1 }, () => m[1]); }).map(nm_ => take(nm_, p)) : null);
+  }
+  const sz = p => { const v = parseInt(sizes[p]); return v >= 0 ? v : -1; };
+  const rest = shuf(deck);
+  for (let p = 0; p < n; p++) {
+    if (hands[p] && sz(p) >= 0) {
+      if (sz(p) < hands[p].length) throw new Error(`${lab(p)}: 手札の指定(${hands[p].length}枚)が枚数(${sz(p)}枚)を超えています`);
+      while (hands[p].length < sz(p) && rest.length) hands[p].push(rest.pop());
+    } else if (!hands[p] && sz(p) >= 0) hands[p] = rest.splice(0, sz(p));
+  }
+  const auto = []; for (let p = 0; p < n; p++) if (!hands[p]) { hands[p] = []; auto.push(p); }
+  if (auto.length) while (rest.length) hands[auto[rest.length % auto.length]].push(rest.pop());
+  if (!hands.some(h => h.some(c => c.j))) { const j = rest.findIndex(c => c.j); if (j >= 0) hands[rnd(n)].push(rest.splice(j, 1)[0]); }
+  hands.forEach((h, p) => { if (!h.length) throw new Error(`${lab(p)}の手札が0枚です`); });
+  const first = parseInt(spec.first); return { n, hands, first: first >= 0 && first < n ? first : 0 };
+}
+
+function startGame(r, hs, dbg) {
+  const D = dbg ? debugDeal(dbg) : null;
   const P = hs.map(h => ({ id: h.id, name: h.name, cpu: 0 })), cn = shuf(ROBOTS.slice()).map(n => '🤖' + n); // CPU名: 実在ロボットの名前からランダム(重複なし)
   let k = 0;
-  while (P.length < 3) P.push({ id: 'cpu' + k, name: cn[k++], cpu: 1 });
-  if (hs.length === 1) shuf(P); // ひとり用: 席順(=手番)をランダムにする
-  const d = [];
-  T.forEach((t, i) => { for (let x = 0; x < t.c; x++) d.push({ t: i }); });
-  d.push({ j: 1 }); shuf(d);
-  const hands = P.map(() => []);
-  d.forEach((c, i) => hands[i % P.length].push(c));
-  const S = r.S = { ph: 'play', P, hands, out: P.map(() => 0), skip: P.map(() => 0), nopair: P.map(() => 0), pl: P.map(() => []), fresh: P.map(() => new Map()), seq: 0, tseq: 0, last: null, log: [], turn: 0, known: -1, msg: '', hl: null, prompt: null, loser: -1 };
+  while (P.length < (D ? D.n : 3)) P.push({ id: 'cpu' + k, name: cn[k++], cpu: 1 });
+  if (hs.length === 1 && !D) shuf(P); // ひとり用: 席順(=手番)をランダムにする
+  let hands;
+  if (D) hands = D.hands;
+  else {
+    const d = [];
+    T.forEach((t, i) => { for (let x = 0; x < t.c; x++) d.push({ t: i }); });
+    d.push({ j: 1 }); shuf(d);
+    hands = P.map(() => []);
+    d.forEach((c, i) => hands[i % P.length].push(c));
+  }
+  const S = r.S = { ph: 'play', P, hands, out: P.map(() => 0), skip: P.map(() => 0), nopair: P.map(() => 0), pl: P.map(() => []), fresh: P.map(() => new Map()), seq: 0, tseq: 0, last: null, log: [], turn: D ? D.first : 0, known: -1, msg: '', hl: null, prompt: null, loser: -1 };
   r.pending = null;
   const hd = p => S.hands[p], cpu = p => S.P[p].cpu, PN = p => S.P[p].name;
   const alive = () => S.P.map((_, i) => i).filter(i => !S.out[i]);
@@ -297,7 +340,7 @@ http.createServer(async (req, res) => {
         const { r, p } = a, S = r.S;
         if (b.type === 'start' && r.pl[0] === p && (!S || S.ph === 'over')) {
           if (S) r.pl = r.pl.filter(x => x.res || x === p);
-          startGame(r, r.pl.slice(0, 6));
+          try { startGame(r, r.pl.slice(0, 6), r.pl.length === 1 ? b.debug : null); } catch (e) { return json(res, { error: e.message }); }
         } else if (b.type === 'choose' && S && S.ph === 'play' && r.pending && S.prompt && S.prompt.n === b.n && S.P[S.prompt.p].id === p.id) {
           r.pending.fin(b.v);
         } else if (b.type === 'order' && S && S.ph === 'play') {
