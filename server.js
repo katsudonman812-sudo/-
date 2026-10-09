@@ -14,6 +14,7 @@ const rnd = n => Math.random() * n | 0;
 const SCALE = +process.env.WAIT_SCALE || 1; // テスト用: 演出の待ち時間を縮める(通常は1)
 const wait = ms => new Promise(r => setTimeout(r, ms * SCALE));
 const shuf = a => { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const ROBOTS = ['ASIMO', 'AIBO', 'QRIO', 'Pepper', 'Kirobo', 'HRP-4', 'PARO', 'LOVOT', 'Palro', 'HAL', 'Atlas', 'Spot', 'Digit', 'Optimus', 'Sophia', 'NAO', 'iCub', 'Valkyrie', 'Robonaut', 'Talos', 'BigDog', 'Cheetah', 'Unitree', 'Roomba', 'Baxter', 'Sawyer', 'Stretch'];
 const ord = c => c.j ? 99 : c.t;
 const nm = c => c.j ? '😈サボり' : T[c.t].e + T[c.t].n;
 const clean = s => String(s || '').replace(/[<>&"'`]/g, '').trim().slice(0, 12);
@@ -65,7 +66,7 @@ function removePlayer(r, pid) {
 
 // ---------------- ゲームエンジン ----------------
 function startGame(r, hs) {
-  const P = hs.map(h => ({ id: h.id, name: h.name, cpu: 0 })), cn = ['CPU1', 'CPU2', 'CPU3', 'CPU4'];
+  const P = hs.map(h => ({ id: h.id, name: h.name, cpu: 0 })), cn = shuf(ROBOTS.slice()).map(n => '🤖' + n); // CPU名: 実在ロボットの名前からランダム(重複なし)
   let k = 0;
   while (P.length < 3) P.push({ id: 'cpu' + k, name: cn[k++], cpu: 1 });
   if (hs.length === 1) shuf(P); // ひとり用: 席順(=手番)をランダムにする

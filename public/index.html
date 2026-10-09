@@ -108,7 +108,7 @@ const cardH=(c,x='')=>`<i>${c.j?'😈':T[c.t].e}</i><span>${c.j?'サボり':T[c.
 function rGame(){
 if(mv!==null&&mv>=V.hand.length)mv=null;$('ctl').hidden=V.mi<0;
 const me=V.mi,pr=V.pr,own=pr&&pr.p==me,n=V.P.length,play=V.ph=='play',hi=own&&pr.hi||null,ex=own&&pr.ex||[];
-const nmL=p=>`<div class="nm">${V.turn==p&&play?'▶ ':''}${esc(V.P[p].name)}${V.P[p].cpu?'🤖':''} ${V.out[p]?'🎉退社':V.P[p].n+'枚'}${V.known==p&&!V.out[p]?' 👀サボり持ち':''}</div>`;
+const nmL=p=>`<div class="nm">${V.turn==p&&play?'▶ ':''}${esc(V.P[p].name)} ${V.out[p]?'🎉退社':V.P[p].n+'枚'}${V.known==p&&!V.out[p]?' 👀サボり持ち':''}</div>`;
 const seat=(p,v)=>`<div class="op${V.turn==p&&play?' turn':''}${own&&pr.from==p?' from':''}">${nmL(p)}<div class="row fan ${v}${own&&pr.from==p?' t':''}">`+Array.from({length:V.P[p].n},(_,i)=>`<button class="b${own&&pr.from==p?' t':''}${V.hl&&V.hl.p==p&&V.hl.i==i?' h':''}" data-i="${i}"></button>`).join('')+'</div></div>';
 const cnt=me<0?n:n-1,o=Array.from({length:cnt},(_,k)=>me<0?k:(me+1+k)%n),dd=D[cnt]||[[],[],[]];
 ['sL','sT','sR'].forEach((id,j)=>$(id).innerHTML=dd[j].map(i=>seat(o[i],j==1?'h':'v')).join(''));
@@ -118,7 +118,7 @@ const cn={};V.hand.forEach(c=>{if(!c.j)cn[c.t]=(cn[c.t]||0)+1});
 $('me').innerHTML=me<0?'<div class="nm">👀 観戦中</div>':nmL(me)+'<div class="hand">'+V.hand.map((c,i)=>{const pa=!c.j&&cn[c.t]>1;
 return`<div class="c${c.j?' joker':''}${pa?' pair':''}${hi&&hi.includes(i)?' sel':''}${mv===i?' mvsel':''}${ex.includes(i)?' ex':''}${V.hl&&V.hl.p==me&&V.hl.i==i?' h':''}" data-i="${i}" data-t="${c.j?-1:c.t}" draggable="true">${cardH(c,(c.g?`<b class="tg">${esc(c.g)}</b>`:'')+(pa?'<u>ペア</u>':''))}</div>`}).join('')+'</div>';
 $('hd').textContent='ルーム '+V.code;
-$('pls').innerHTML=V.P.map((x,p)=>`<div class="${V.turn==p&&play?'cur':''}">${V.turn==p&&play?'▶':'　'}${esc(x.name)}${x.cpu?'🤖':''}${p==me?'(あなた)':''} — ${V.out[p]?'🎉退社':x.n+'枚'}</div>`).join('');
+$('pls').innerHTML=V.P.map((x,p)=>`<div class="${V.turn==p&&play?'cur':''}">${V.turn==p&&play?'▶':'　'}${esc(x.name)}${p==me?'(あなた)':''} — ${V.out[p]?'🎉退社':x.n+'枚'}</div>`).join('');
 const fill=(id,a)=>{const e=$(id);e.innerHTML=a.map(x=>`<div>${esc(x)}</div>`).join('')||'<div class="sub">まだありません</div>';e.scrollTop=e.scrollHeight};
 fill('log',V.log||[]);fill('plog',V.pl||[]);rRules(cn);
 $('msg').textContent=own?pr.msg:(V.msg||'')+(pr&&!own?` ⏳${V.P[pr.p].name}の操作待ち`:'');
