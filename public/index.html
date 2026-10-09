@@ -41,6 +41,11 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 .row.fan{flex-wrap:nowrap;gap:0;padding-left:12px}.fan .b:first-child{margin:0}.fan.h .b{margin-left:-12px}.fan.h.t .b{margin-left:-5px}
 .fan.v{flex-direction:column;align-items:center;padding:0 0 12px}.fan.v .b{width:36px;height:22px;margin-top:-14px;background:repeating-linear-gradient(135deg,#2a4f9a,#2a4f9a 3px,#4670c4 3px,#4670c4 6px)}.fan.v.t .b{margin-top:-6px}
 .fan.v .b.h{transform:translateX(5px)}.c[draggable]{cursor:grab}.c.mvsel{border-color:#e8336d;box-shadow:0 0 0 3px #e8336d;transform:translateY(-8px)}
+.rmo{position:fixed;inset:0;background:#000b;z-index:30;display:flex;align-items:center;justify-content:center;padding:10px;box-sizing:border-box}
+.rmb{position:relative;background:#0b1a13;color:#f2f2f2;border:2px solid var(--bd);border-radius:14px;max-width:580px;width:100%;max-height:88vh;overflow-y:auto;padding:14px 16px;font-size:13.5px;line-height:1.7;box-sizing:border-box}
+.rmb h4{margin:12px 0 4px;color:var(--acc);font-size:14.5px}.rmb h4:first-of-type{margin-top:0}.rmb ul{margin:4px 0;padding-left:20px}.rmb .x{position:sticky;top:0;float:right}
+.rt table{border-collapse:collapse;width:100%;margin:6px 0;font-size:12.5px}.rt th,.rt td{border:1px solid #fff4;padding:4px 6px;text-align:center}.rt th{background:#fff2}.rt td.w{color:#7fe3a1;font-weight:700}.rt td.l{color:#ff9aa8;font-weight:700}
+#rfab{position:fixed;right:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:20;box-shadow:0 2px 8px #0008}
 </style></head><body>
 <main>
 <section id="open" class="felt hero"><div class="big">💼</div><h2>サボりゲーム</h2>
@@ -69,6 +74,8 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 <div class="box"><h3>🃏 カード効果</h3><div id="rules"></div></div>
 </aside></div>
 </main>
+<div id="rm" class="rmo" hidden><div class="rmb"><button class="go x" id="rmx">✕ 閉じる</button><div id="rmc" class="rt"></div></div></div>
+<button class="go" id="rfab">📖 ルール</button>
 <div id="end" hidden><div><span id="res"></span><br><button class="go" id="again"></button><button class="go" id="home">オープニングに戻る</button></div></div>
 <script>
 let mv=null,T=[],V=null,sess=null,es=null,sent='',lastKey='',selT=-2,stick='手札にカーソルを合わせる(スマホはタップ)と効果が表示されます';
@@ -120,7 +127,24 @@ if(key!==lastKey){lastKey=key;const a=$('act');a.innerHTML='';
 if(own&&pr.opts&&!pr.hi)pr.opts.forEach((l,i)=>{const b=document.createElement('button');b.className='go';b.textContent=l;b.onclick=()=>{a.innerHTML='';respond(i)};a.appendChild(b)})}
 if(V.ph=='over'){$('res').textContent=V.loser==me?'😱 残業確定…あなたの負け!':`🎉 定時退社!\n${V.P[V.loser].name}が残業に…`;
 const b=$('again'),h=V.host==V.me;b.disabled=!h;b.textContent=h?'もう一度':'ホストの操作待ち…'}}
-function rRules0(){$('rules0').innerHTML='<b>ルール</b><br>自分の番に次の人の手札から1枚引き、同じカードが2枚そろっていればペアを出して効果を発動できます(1ターン1ペアまで)。手札がなくなったら定時退社🎉。最後までサボり😈を持っていた人、または社長で暴かれた人の負けです。<br><br>'+T.map(t=>`${t.e}<b>${t.n}</b>(${t.c}枚): ${t.d}`).join('<br>')+'<br>😈<b>サボり</b>(1枚): 最後まで持っていたら負け。社長で暴かれても負け'}
+function ruleHtml(){const cards=T.map(t=>`<li>${t.e}<b>${t.n}</b>(${t.c}枚): ${t.d}</li>`).join('');
+return `<h4>■ ターンの流れ</h4><p>手番は時計回りに進みます。自分のターンでは、次の2つを行い、②のあとに効果処理が入ります。</p>
+<ul><li><b>① カードを1枚引く【労働】(必須)</b><br>次の手番の人(画面で水色の枠に光っている人)の手札から、カードを1枚引きます。</li>
+<li><b>② ペアを場に出す【行動】(任意)</b><br>手札に同じ種類のカードが2枚(=1ペア)あれば、1ターンに<b>1ペアだけ</b>場に出せます。出さなくても構いません(パス)。</li>
+<li><b>③ カードの効果を使う【効果処理】</b><br>出したカードに書かれた効果を適用します。</li></ul>
+<ul><li>①か②の効果のあと、手札が0枚になったら<b>退社🎉</b>(ゲームから抜けます)。</li>
+<li>退社した人は、カード効果の対象になりません(指名・交換・受け渡しなど)。</li></ul>
+<h4>■ ゲームの終了条件</h4>
+<p>どちらかを満たすと、ゲームは終了します。</p>
+<ul><li>i. 社長の効果で、サボり😈カードが公開される</li><li>ii. サボりを含め、手札を持っている人が1人だけになる</li></ul>
+<h4>■ 勝利判定</h4>
+<table><tr><th></th><th>サボりが公開された場合</th><th>手札を持っている人が1人</th></tr>
+<tr><td class="w">勝者</td><td>サボりを公開させた人</td><td>退社した人全員</td></tr>
+<tr><td class="l">敗者</td><td>サボりを持っていた人</td><td>サボりを持っていた人</td></tr></table>
+<h4>■ カード効果</h4><ul>${cards}<li>😈<b>サボり</b>(1枚): ババ。ペアにならず、場には出せません。社長の効果で公開されると敗北します。</li></ul>`}
+function rRules0(){$('rules0').innerHTML='<div class="rt">'+ruleHtml()+'</div>'}
+const rOpen=on=>{if(on)$('rmc').innerHTML=ruleHtml();$('rm').hidden=!on};
+$('rfab').onclick=()=>rOpen(true);$('rmx').onclick=()=>rOpen(false);$('rm').onclick=e=>{if(e.target==$('rm'))rOpen(false)};document.addEventListener('keydown',e=>{if(e.key=='Escape')rOpen(false)});
 function rRules(cn){if(!T.length)return;const h=V?V.hand:[],j=h.filter(c=>c.j).length;
 $('rules').innerHTML=T.map((t,i)=>`<div class="rl${selT==i?' on':''}"><b>${t.e}${t.n}</b> ${t.c}枚${cn&&cn[i]?` <em>手札${cn[i]}</em>`:''}<br><span>${t.d}</span></div>`).join('')+
 `<div class="rl${selT==-1?' on':''}"><b>😈サボり</b> 1枚${j?' <em>手札にあり!</em>':''}<br><span>最後まで持っていたら負け。社長で暴かれても負け</span></div>
