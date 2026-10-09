@@ -183,4 +183,5 @@ $('bsort').onclick=()=>permAct(h=>h.map((_,i)=>i).sort((a,b)=>(h[a].j?99:h[a].t)
 $('me').ondragstart=e=>{const c=e.target.closest('.c');if(c)e.dataTransfer.setData('text/plain',c.dataset.i)};
 $('me').ondragover=e=>e.preventDefault();
 $('me').ondrop=e=>{e.preventDefault();const c=e.target.closest('.c'),f=+e.dataTransfer.getData('text/plain');if(c&&!isNaN(f))reorder(f,+c.dataset.i)};
+render();
 </script></body></html>
