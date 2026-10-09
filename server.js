@@ -188,7 +188,7 @@ function startGame(r, hs) {
     }
     else if (k === 'love') {
       if (!hd(a).length) m += '渡せる手札がなかった';
-      else { const i = await pick(a, '渡すカードを選ぼう(お互い任意・同時に交換)'), j = await pick(t, '相手に渡すカードを選ぼう(同時に交換)'); exch(a, t, [i], [j], '💕交換'); m += 'お互い1枚ずつ交換💕'; }
+      else { const ca = hd(a)[await pick(a, '渡すカードを選ぼう(お互い任意・同時に交換)')]; const cb = hd(t)[await pick(t, '相手に渡すカードを選ぼう(同時に交換)')]; exch(a, t, [hd(a).indexOf(ca)], [hd(t).indexOf(cb)], '💕交換'); m += 'お互い1枚ずつ交換💕'; }
     }
     else if (k === 'newbie') {
       const nn = Math.min(2, hd(a).length);
@@ -196,7 +196,7 @@ function startGame(r, hs) {
       else {
         const ia = [];
         for (let x = 0; x < nn; x++) ia.push(await pick(a, `渡すカードを選ぼう(${x + 1}/${nn}枚目)`, () => 1, ia));
-        const j = await pick(t, '相手に渡すカードを1枚選ぼう(同時に交換)'); exch(a, t, ia, [j], '🐣交換'); m += `新人教育!${nn}枚と1枚を同時に交換🐣`;
+        const cas = ia.map(k => hd(a)[k]); const cj = hd(t)[await pick(t, '相手に渡すカードを1枚選ぼう(同時に交換)')]; exch(a, t, cas.map(c => hd(a).indexOf(c)), [hd(t).indexOf(cj)], '🐣交換'); m += `新人教育!${nn}枚と1枚を同時に交換🐣`;
       }
     }
     else if (k === 'bribe') {
@@ -287,10 +287,11 @@ http.createServer(async (req, res) => {
           r.pending.fin(b.v);
         } else if (b.type === 'order' && S && S.ph === 'play') {
           const i = S.P.findIndex(x => x.id === p.id), h = i >= 0 && S.hands[i], q = S.prompt;
-          const lock = (q && (q.from === i || (q.p === i && q.hi))) || (S.hl && S.hl.p === i);
+          const lock = (q && q.from === i) || (S.hl && S.hl.p === i);
           const ok = h && !lock && Array.isArray(b.perm) && b.perm.length === h.length && new Set(b.perm).size === h.length && b.perm.every(k => Number.isInteger(k) && k >= 0 && k < h.length);
           if (!ok) return json(res, { error: 'locked' });
-          S.hands[i] = b.perm.map(k => h[k]); push(r);
+          if (q && q.p === i && q.hi) { const nw = k => b.perm.indexOf(k); q.hi.forEach((k, j) => { q.hi[j] = nw(k); }); (q.ex || []).forEach((k, j) => { q.ex[j] = nw(k); }); } // 選択中の番号も追従させる
+          const nh = b.perm.map(k => h[k]); h.splice(0, h.length, ...nh); push(r);
         } else if (b.type === 'leave') removePlayer(r, p.id);
         return json(res, { ok: true });
       }

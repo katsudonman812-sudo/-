@@ -133,8 +133,8 @@ $('me').onclick=e=>{const c=e.target.closest('.c');if(!c)return;const i=+c.datas
 if(pr&&pr.p==V.mi&&pr.hi&&pr.hi.includes(i))return respond(pr.hi.indexOf(i));
 if(mv!==null&&mv!==i)return reorder(mv,i);
 mv=mv===i?null:i;stick=infoText(+c.dataset.t);show(+c.dataset.t);rGame()};
-const locked=()=>{const q=V&&V.pr;return !!q&&(q.from==V.mi||(q.p==V.mi&&q.hi))};
-function reorder(f,t){if(f===t||!V||V.mi<0)return;if(locked()){$('info').textContent='今はカード選択中なので並び替えできません';return}
+const locked=()=>{const q=V&&V.pr;return !!q&&q.from==V.mi};
+function reorder(f,t){if(f===t||!V||V.mi<0)return;if(locked()){$('info').textContent='今は相手があなたのカードを選んでいるので並び替えできません';return}
 const p=V.hand.map((_,i)=>i);p.splice(t,0,p.splice(f,1)[0]);mv=null;act('order',{perm:p})}
 const permAct=f=>{if(!V||V.mi<0||locked())return;mv=null;act('order',{perm:f(V.hand)})};
 $('bshuf').onclick=()=>permAct(h=>{const p=h.map((_,i)=>i);for(let i=p.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[p[i],p[j]]=[p[j],p[i]]}return p});
