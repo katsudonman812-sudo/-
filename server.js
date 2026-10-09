@@ -16,7 +16,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms * SCALE));
 const shuf = a => { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const ROBOTS = ['ASIMO', 'AIBO', 'QRIO', 'Pepper', 'Kirobo', 'HRP-4', 'PARO', 'LOVOT', 'Palro', 'HAL', 'Atlas', 'Spot', 'Digit', 'Optimus', 'Sophia', 'NAO', 'iCub', 'Valkyrie', 'Robonaut', 'Talos', 'BigDog', 'Cheetah', 'Unitree', 'Roomba', 'Baxter', 'Sawyer', 'Stretch'];
 const ord = c => c.j ? 99 : c.t;
-const nm = c => c.j ? '😈サボり' : T[c.t].e + T[c.t].n;
+const nm = c => c.j ? '😴サボり' : T[c.t].e + T[c.t].n;
 const clean = s => String(s || '').replace(/[<>&"'`]/g, '').trim().slice(0, 12);
 
 const cleanKey = s => String(s || '').replace(/[\s<>&"'`\/\\?#%]/g, '').slice(0, 12).toUpperCase();
@@ -29,7 +29,7 @@ function mkRoom(key) {
   return r;
 }
 function addPlayer(r, name) {
-  const p = { id: crypto.randomBytes(4).toString('hex'), token: crypto.randomBytes(12).toString('hex'), name: clean(name) || 'プレイヤー', res: null };
+  const p = { id: crypto.randomBytes(4).toString('hex'), token: crypto.randomBytes(12).toString('hex'), name: clean(name) || '名無しの労働者', res: null };
   r.pl.push(p);
   return p;
 }
@@ -125,7 +125,7 @@ function startGame(r, hs) {
   async function over(l) { S.ph = 'over'; S.loser = l; S.prompt = null; S.msg = ''; lg(`🏁 ゲーム終了: ${PN(l)}が残業に…`); await upd(); }
   async function run() {
     lg('ゲーム開始!');
-    await upd('配り終わり!最後にサボり😈を持っていたら負け', 1500);
+    await upd('配り終わり!最後にサボり😴を持っていたら負け', 1500);
     while (S.ph === 'play' && live()) {
       if (alive().length < 2) { await over(alive()[0]); break; }
       const a = S.turn;
@@ -179,12 +179,12 @@ function startGame(r, hs) {
   }
   async function eff(a, k, t) {
     let m = t >= 0 ? `${PN(t)}を指名。` : '';
-    if (k === 'sabori') m = 'ノルマ…何も起きない😴';
+    if (k === 'sabori') m = 'ノルマ…何も起きない📈';
     else if (k === 'meet') { const y = hd(t).some(c => c.j); m += y ? '「…サボりカード、持ってます😅」(申告)' : '申告なし(サボりは持っていない)'; if (y) S.known = t; else if (S.known === t) S.known = -1; }
     else if (k === 'kiro') {
       const i = cpu(a) ? rnd(hd(t).length) : await choose(a, `${PN(t)}の手札から公開するカードを1枚選ぼう`, null, t);
       S.hl = { p: t, i }; await upd(null, 700); S.hl = null; const c = hd(t)[i];
-      if (c.j) { lg(`　→ ${PN(t)}の手札を公開…サボりカード発覚!😈`); await upd(m + '手札を公開…サボりカード発覚!😈', 1500); return over(t); }
+      if (c.j) { lg(`　→ ${PN(t)}の手札を公開…サボりカード発覚!😴`); await upd(m + '手札を公開…サボりカード発覚!😴', 1500); return over(t); }
       if (T[c.t].k === 'boss') { give(t, a, i, '社長で公開'); pm(a, `🔍 社長: ${PN(t)}の${nm(c)}が公開され、受け取った`); pm(t, `🔍 社長: ${nm(c)}が公開され、${PN(a)}に渡った`); m += `手札を公開: ${nm(c)} → 上司命令なので${PN(a)}に渡った`; }
       else m += `手札を公開: ${nm(c)}(セーフ)`;
     }
