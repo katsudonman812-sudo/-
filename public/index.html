@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>残業ゲーム</title>
+<title>サボりゲーム</title>
 <style>
 :root{--bg:#10231a;--ink:#f2f2f2;--acc:#f2b705;--pn:#0b1a13;--bd:#2d5a43;--sw:112px}
 html{height:100%}body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
@@ -37,10 +37,13 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 #end{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;z-index:9}#end>div{background:#fff;color:#222;padding:24px;border-radius:16px;text-align:center;font-size:18px;font-weight:700}
 #res{white-space:pre-line}#end .go{margin:14px 6px 0}
 @media(max-width:820px){:root{--sw:78px}.layout{grid-template-columns:1fr}.table{min-height:0;padding:6px}.center{border-radius:24px}.c{width:54px;height:80px}.b{width:18px;height:28px}}
+.row.fan{flex-wrap:nowrap;gap:0;padding-left:12px}.fan .b:first-child{margin:0}.fan.h .b{margin-left:-12px}.fan.h.t .b{margin-left:-5px}
+.fan.v{flex-direction:column;align-items:center;padding:0 0 12px}.fan.v .b{width:36px;height:22px;margin-top:-14px;background:repeating-linear-gradient(135deg,#2a4f9a,#2a4f9a 3px,#4670c4 3px,#4670c4 6px)}.fan.v.t .b{margin-top:-6px}
+.fan.v .b.h{transform:translateX(5px)}.c[draggable]{cursor:grab}.c.mvsel{border-color:#e8336d;box-shadow:0 0 0 3px #e8336d;transform:translateY(-8px)}
 </style></head><body>
 <main>
-<section id="open" class="felt hero"><div class="big">💼</div><h2>残業ゲーム</h2>
-<p>残業😈を押し付け合う、ババ抜きベースのカードゲーム</p>
+<section id="open" class="felt hero"><div class="big">💼</div><h2>サボりゲーム</h2>
+<p>サボり😈を押し付け合う、ババ抜きベースのカードゲーム</p>
 <input id="nm" maxlength="12" placeholder="なまえ">
 <button class="go" id="bsolo">ひとりで遊ぶ(CPU対戦)</button>
 <button class="go" id="bcre">ルームを作って友達と遊ぶ</button>
@@ -56,7 +59,7 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 <section class="table"><div id="sT"></div><div id="sL"></div>
 <div class="center"><div id="field"></div><p id="msg" aria-live="polite"></p><div id="act"></div></div>
 <div id="sR"></div>
-<div class="mine"><div id="me"></div><div id="info"></div></div></section>
+<div class="mine"><div id="me"></div><div id="info"></div><div class="sub" id="ctl" style="margin-top:6px"><button class="go" id="bshuf">🔀シャッフル</button> <button class="go" id="bsort">整列</button> ドラッグ、またはタップ→移動先をタップで並び替え</div></div></section>
 <aside class="side">
 <div class="box"><h3 id="hd"></h3><button class="go" id="bcp2">招待リンク</button> <button class="go" id="bleave">ロビーへ</button></div>
 <div class="box"><h3>プレイヤー</h3><div id="pls"></div></div>
@@ -67,7 +70,7 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 </main>
 <div id="end" hidden><div><span id="res"></span><br><button class="go" id="again"></button><button class="go" id="home">オープニングに戻る</button></div></div>
 <script>
-let T=[],V=null,sess=null,es=null,sent='',lastKey='',selT=-2,stick='手札にカーソルを合わせる(スマホはタップ)と効果が表示されます';
+let mv=null,T=[],V=null,sess=null,es=null,sent='',lastKey='',selT=-2,stick='手札にカーソルを合わせる(スマホはタップ)と効果が表示されます';
 const $=id=>document.getElementById(id),D={1:[[],[0],[]],2:[[0],[],[1]],3:[[0],[1],[2]],4:[[0],[1,2],[3]],5:[[0,1],[2],[3,4]],6:[[0,1],[2,3],[4,5]]};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 try{sess=JSON.parse(localStorage.getItem('zg'))}catch(e){}
@@ -93,17 +96,18 @@ function rLobby(){$('code').textContent=V.code;
 $('plist').innerHTML=V.lobby.map(x=>`<li>${x.id==V.host?'👑':'👤'} ${esc(x.name)}${x.id==V.me?'(あなた)':''}${x.on?'':' ⚠切断中'}</li>`).join('');
 const c=Math.max(0,3-V.lobby.length),isH=V.host==V.me;$('lnote').textContent=`参加者${V.lobby.length}人`+(c?` + CPU${c}人で開始します`:'で開始します');
 $('bs').hidden=!isH;if(!isH)$('lnote').textContent+=' / ホストの開始を待っています'}
-const cardH=(c,x='')=>`<i>${c.j?'😈':T[c.t].e}</i><span>${c.j?'残業':T[c.t].n}</span>${x}`;
+const cardH=(c,x='')=>`<i>${c.j?'😈':T[c.t].e}</i><span>${c.j?'サボり':T[c.t].n}</span>${x}`;
 function rGame(){
+if(mv!==null&&mv>=V.hand.length)mv=null;$('ctl').hidden=V.mi<0;
 const me=V.mi,pr=V.pr,own=pr&&pr.p==me,n=V.P.length,play=V.ph=='play',hi=own&&pr.hi||null,ex=own&&pr.ex||[];
-const nmL=p=>`<div class="nm">${V.turn==p&&play?'▶ ':''}${esc(V.P[p].name)}${V.P[p].cpu?'🤖':''} ${V.out[p]?'🎉退社':V.P[p].n+'枚'}${V.known==p&&!V.out[p]?' 👀残業持ち':''}</div>`;
-const seat=p=>`<div class="op${V.turn==p&&play?' turn':''}${own&&pr.from==p?' from':''}">${nmL(p)}<div class="row">`+Array.from({length:V.P[p].n},(_,i)=>`<button class="b${own&&pr.from==p?' t':''}${V.hl&&V.hl.p==p&&V.hl.i==i?' h':''}" data-i="${i}"></button>`).join('')+'</div></div>';
+const nmL=p=>`<div class="nm">${V.turn==p&&play?'▶ ':''}${esc(V.P[p].name)}${V.P[p].cpu?'🤖':''} ${V.out[p]?'🎉退社':V.P[p].n+'枚'}${V.known==p&&!V.out[p]?' 👀サボり持ち':''}</div>`;
+const seat=(p,v)=>`<div class="op${V.turn==p&&play?' turn':''}${own&&pr.from==p?' from':''}">${nmL(p)}<div class="row fan ${v}${own&&pr.from==p?' t':''}">`+Array.from({length:V.P[p].n},(_,i)=>`<button class="b${own&&pr.from==p?' t':''}${V.hl&&V.hl.p==p&&V.hl.i==i?' h':''}" data-i="${i}"></button>`).join('')+'</div></div>';
 const cnt=me<0?n:n-1,o=Array.from({length:cnt},(_,k)=>me<0?k:(me+1+k)%n),dd=D[cnt]||[[],[],[]];
-['sL','sT','sR'].forEach((id,j)=>$(id).innerHTML=dd[j].map(i=>seat(o[i])).join(''));
+['sL','sT','sR'].forEach((id,j)=>$(id).innerHTML=dd[j].map(i=>seat(o[i],j==1?'h':'v')).join(''));
 const L=V.last;$('field').innerHTML=L?`<div class="fld"><div class="c">${cardH({t:L.t})}</div><div class="c">${cardH({t:L.t})}</div><div>${esc(V.P[L.p].name)}が<br>出した</div></div>`:'';
 const cn={};V.hand.forEach(c=>{if(!c.j)cn[c.t]=(cn[c.t]||0)+1});
 $('me').innerHTML=me<0?'<div class="nm">👀 観戦中</div>':nmL(me)+'<div class="hand">'+V.hand.map((c,i)=>{const pa=!c.j&&cn[c.t]>1;
-return`<div class="c${c.j?' joker':''}${pa?' pair':''}${hi&&hi.includes(i)?' sel':''}${ex.includes(i)?' ex':''}${V.hl&&V.hl.p==me&&V.hl.i==i?' h':''}" data-i="${i}" data-t="${c.j?-1:c.t}">${cardH(c,(c.g?`<b class="tg">${esc(c.g)}</b>`:'')+(pa?'<u>ペア</u>':''))}</div>`}).join('')+'</div>';
+return`<div class="c${c.j?' joker':''}${pa?' pair':''}${hi&&hi.includes(i)?' sel':''}${mv===i?' mvsel':''}${ex.includes(i)?' ex':''}${V.hl&&V.hl.p==me&&V.hl.i==i?' h':''}" data-i="${i}" data-t="${c.j?-1:c.t}" draggable="true">${cardH(c,(c.g?`<b class="tg">${esc(c.g)}</b>`:'')+(pa?'<u>ペア</u>':''))}</div>`}).join('')+'</div>';
 $('hd').textContent='ルーム '+V.code;
 $('pls').innerHTML=V.P.map((x,p)=>`<div class="${V.turn==p&&play?'cur':''}">${V.turn==p&&play?'▶':'　'}${esc(x.name)}${x.cpu?'🤖':''}${p==me?'(あなた)':''} — ${V.out[p]?'🎉退社':x.n+'枚'}</div>`).join('');
 const fill=(id,a)=>{const e=$(id);e.innerHTML=a.map(x=>`<div>${esc(x)}</div>`).join('')||'<div class="sub">まだありません</div>';e.scrollTop=e.scrollHeight};
@@ -114,17 +118,28 @@ if(key!==lastKey){lastKey=key;const a=$('act');a.innerHTML='';
 if(own&&pr.opts&&!pr.hi)pr.opts.forEach((l,i)=>{const b=document.createElement('button');b.className='go';b.textContent=l;b.onclick=()=>{a.innerHTML='';respond(i)};a.appendChild(b)})}
 if(V.ph=='over'){$('res').textContent=V.loser==me?'😱 残業確定…あなたの負け!':`🎉 定時退社!\n${V.P[V.loser].name}が残業に…`;
 const b=$('again'),h=V.host==V.me;b.disabled=!h;b.textContent=h?'もう一度':'ホストの操作待ち…'}}
-function rRules0(){$('rules0').innerHTML='<b>ルール</b><br>自分の番に次の人の手札から1枚引き、同じカードが2枚そろっていればペアを出して効果を発動できます(1ターン1ペアまで)。手札がなくなったら定時退社🎉。最後まで残業😈を持っていた人、または社長で暴かれた人の負けです。<br><br>'+T.map(t=>`${t.e}<b>${t.n}</b>(${t.c}枚): ${t.d}`).join('<br>')+'<br>😈<b>残業</b>(1枚): 最後まで持っていたら負け。社長で暴かれても負け'}
+function rRules0(){$('rules0').innerHTML='<b>ルール</b><br>自分の番に次の人の手札から1枚引き、同じカードが2枚そろっていればペアを出して効果を発動できます(1ターン1ペアまで)。手札がなくなったら定時退社🎉。最後までサボり😈を持っていた人、または社長で暴かれた人の負けです。<br><br>'+T.map(t=>`${t.e}<b>${t.n}</b>(${t.c}枚): ${t.d}`).join('<br>')+'<br>😈<b>サボり</b>(1枚): 最後まで持っていたら負け。社長で暴かれても負け'}
 function rRules(cn){if(!T.length)return;const h=V?V.hand:[],j=h.filter(c=>c.j).length;
 $('rules').innerHTML=T.map((t,i)=>`<div class="rl${selT==i?' on':''}"><b>${t.e}${t.n}</b> ${t.c}枚${cn&&cn[i]?` <em>手札${cn[i]}</em>`:''}<br><span>${t.d}</span></div>`).join('')+
-`<div class="rl${selT==-1?' on':''}"><b>😈残業</b> 1枚${j?' <em>手札にあり!</em>':''}<br><span>最後まで持っていたら負け。社長で暴かれても負け</span></div>
+`<div class="rl${selT==-1?' on':''}"><b>😈サボり</b> 1枚${j?' <em>手札にあり!</em>':''}<br><span>最後まで持っていたら負け。社長で暴かれても負け</span></div>
 <div class="rl"><span>ペアを出すと効果発動。手札がなくなったら定時退社🎉</span></div>`}
 function respond(v){const pr=V&&V.pr;if(!pr||pr.p!=V.mi)return;const k=pr.n;if(sent==k)return;sent=k;act('choose',{n:pr.n,v})}
 $('sT').onclick=$('sL').onclick=$('sR').onclick=e=>{const b=e.target.closest('.b.t');if(b)respond(+b.dataset.i)};
-const infoText=t=>t<0?'😈残業: 最後まで持っていたら負け。社長で暴かれても負け':`${T[t].e}${T[t].n}(${T[t].c}枚): ${T[t].d}`;
+const infoText=t=>t<0?'😈サボり: 最後まで持っていたら負け。社長で暴かれても負け':`${T[t].e}${T[t].n}(${T[t].c}枚): ${T[t].d}`;
 const show=t=>{selT=t;$('info').textContent=infoText(t);rRules(V&&V.hand.reduce((m,c)=>(c.j||(m[c.t]=(m[c.t]||0)+1),m),{}))};
 $('info').textContent=stick;
 $('me').onmouseover=e=>{const c=e.target.closest('.c');if(c&&+c.dataset.t!==selT)show(+c.dataset.t)};
 $('me').onclick=e=>{const c=e.target.closest('.c');if(!c)return;const i=+c.dataset.i,pr=V&&V.pr;
-if(pr&&pr.p==V.mi&&pr.hi&&pr.hi.includes(i))return respond(pr.hi.indexOf(i));stick=infoText(+c.dataset.t);show(+c.dataset.t)};
+if(pr&&pr.p==V.mi&&pr.hi&&pr.hi.includes(i))return respond(pr.hi.indexOf(i));
+if(mv!==null&&mv!==i)return reorder(mv,i);
+mv=mv===i?null:i;stick=infoText(+c.dataset.t);show(+c.dataset.t);rGame()};
+const locked=()=>{const q=V&&V.pr;return !!q&&(q.from==V.mi||(q.p==V.mi&&q.hi))};
+function reorder(f,t){if(f===t||!V||V.mi<0)return;if(locked()){$('info').textContent='今はカード選択中なので並び替えできません';return}
+const p=V.hand.map((_,i)=>i);p.splice(t,0,p.splice(f,1)[0]);mv=null;act('order',{perm:p})}
+const permAct=f=>{if(!V||V.mi<0||locked())return;mv=null;act('order',{perm:f(V.hand)})};
+$('bshuf').onclick=()=>permAct(h=>{const p=h.map((_,i)=>i);for(let i=p.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[p[i],p[j]]=[p[j],p[i]]}return p});
+$('bsort').onclick=()=>permAct(h=>h.map((_,i)=>i).sort((a,b)=>(h[a].j?99:h[a].t)-(h[b].j?99:h[b].t)));
+$('me').ondragstart=e=>{const c=e.target.closest('.c');if(c)e.dataTransfer.setData('text/plain',c.dataset.i)};
+$('me').ondragover=e=>e.preventDefault();
+$('me').ondrop=e=>{e.preventDefault();const c=e.target.closest('.c'),f=+e.dataTransfer.getData('text/plain');if(c&&!isNaN(f))reorder(f,+c.dataset.i)};
 </script></body></html>

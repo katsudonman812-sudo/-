@@ -1,5 +1,5 @@
 'use strict';
-// 残業ゲーム サーバー(依存パッケージなし / Node.js 18+)
+// サボりゲーム サーバー(依存パッケージなし / Node.js 18+)
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
 const PORT = process.env.PORT || 3000;
 const T = JSON.parse(fs.readFileSync(path.join(__dirname, 'cards.json'), 'utf8'));
@@ -15,7 +15,7 @@ const SCALE = +process.env.WAIT_SCALE || 1; // テスト用: 演出の待ち時�
 const wait = ms => new Promise(r => setTimeout(r, ms * SCALE));
 const shuf = a => { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const ord = c => c.j ? 99 : c.t;
-const nm = c => c.j ? '😈残業' : T[c.t].e + T[c.t].n;
+const nm = c => c.j ? '😈サボり' : T[c.t].e + T[c.t].n;
 const clean = s => String(s || '').replace(/[<>&"'`]/g, '').trim().slice(0, 12);
 
 function mkRoom() {
@@ -38,7 +38,7 @@ function view(r, pid) {
   v.P = S.P.map((x, i) => ({ name: x.name, cpu: x.cpu, n: S.hands[i].length }));
   v.mi = mi; v.hand = mi >= 0 ? S.hands[mi].map(c => { const f = S.fresh[mi].get(c); return f ? { ...c, g: f.l } : c; }) : [];
   v.out = S.out; v.turn = S.turn; v.known = S.known; v.msg = S.msg; v.hl = S.hl; v.log = S.log; v.loser = S.loser;
-  v.pr = S.prompt ? (S.prompt.p === mi ? S.prompt : { p: S.prompt.p }) : null;
+  v.pr = S.prompt ? (S.prompt.p === mi ? S.prompt : { p: S.prompt.p, from: S.prompt.from }) : null;
   v.pl = mi >= 0 ? S.pl[mi] : []; v.last = S.last;
   return v;
 }
@@ -81,7 +81,7 @@ function startGame(r, hs) {
   const lg = t => { S.log.push(t); if (S.log.length > 80) S.log.shift(); };
   const pm = (p, t) => { const a = S.pl[p]; a.push(t); if (a.length > 40) a.shift(); };
   const tag = (p, c, l) => S.fresh[p].set(c, { l, s: ++S.seq });
-  const srt = () => S.hands.forEach((h, p) => { if (!cpu(p)) h.sort((a, b) => ord(a) - ord(b)); });
+  const srt = () => {}; // 手札は自動で並び替えない(位置から残業が分からないように。並び替えは本人が行う)
   const mv = (c, f) => { S.fresh[f].delete(c); if (c.j && S.known === f) S.known = -1; };
   const give = (f, to, i, l) => { const c = hd(f).splice(i, 1)[0]; mv(c, f); hd(to).push(c); tag(to, c, l); return c; };
   const chk = () => { let s = ''; S.P.forEach((_, p) => { if (!hd(p).length && !S.out[p]) { S.out[p] = 1; s += ` ${PN(p)}は定時退社!🎉`; } }); return s; };
@@ -122,7 +122,7 @@ function startGame(r, hs) {
   async function over(l) { S.ph = 'over'; S.loser = l; S.prompt = null; S.msg = ''; lg(`🏁 ゲーム終了: ${PN(l)}が残業に…`); await upd(); }
   async function run() {
     lg('ゲーム開始!');
-    await upd('配り終わり!最後に残業😈を持っていたら負け', 1500);
+    await upd('配り終わり!最後にサボり😈を持っていたら負け', 1500);
     while (S.ph === 'play' && live()) {
       if (alive().length < 2) { await over(alive()[0]); break; }
       const a = S.turn;
@@ -173,12 +173,12 @@ function startGame(r, hs) {
   }
   async function eff(a, k, t) {
     let m = t >= 0 ? `${PN(t)}を指名。` : '';
-    if (k === 'sabori') m = 'サボった…何も起きない😴';
-    else if (k === 'meet') { const y = hd(t).some(c => c.j); m += y ? '「…残業カード、持ってます😅」(申告)' : '申告なし(残業は持っていない)'; if (y) S.known = t; else if (S.known === t) S.known = -1; }
+    if (k === 'sabori') m = 'ノルマ…何も起きない😴';
+    else if (k === 'meet') { const y = hd(t).some(c => c.j); m += y ? '「…サボりカード、持ってます😅」(申告)' : '申告なし(サボりは持っていない)'; if (y) S.known = t; else if (S.known === t) S.known = -1; }
     else if (k === 'kiro') {
       const i = cpu(a) ? rnd(hd(t).length) : await choose(a, `${PN(t)}の手札から公開するカードを1枚選ぼう`, null, t);
       S.hl = { p: t, i }; await upd(null, 700); S.hl = null; const c = hd(t)[i];
-      if (c.j) { lg(`　→ ${PN(t)}の手札を公開…残業カード発覚!😈`); await upd(m + '手札を公開…残業カード発覚!😈', 1500); return over(t); }
+      if (c.j) { lg(`　→ ${PN(t)}の手札を公開…サボりカード発覚!😈`); await upd(m + '手札を公開…サボりカード発覚!😈', 1500); return over(t); }
       if (T[c.t].k === 'boss') { give(t, a, i, '社長で公開'); pm(a, `🔍 社長: ${PN(t)}の${nm(c)}が公開され、受け取った`); pm(t, `🔍 社長: ${nm(c)}が公開され、${PN(a)}に渡った`); m += `手札を公開: ${nm(c)} → 上司命令なので${PN(a)}に渡った`; }
       else m += `手札を公開: ${nm(c)}(セーフ)`;
     }
@@ -201,7 +201,7 @@ function startGame(r, hs) {
     }
     else if (k === 'bribe') {
       if (!hd(a).some(c => !c.j)) m += '渡せるカードがなかった';
-      else { const i = await pick(a, '賄賂にするカードを選ぼう(残業以外)', c => !c.j); const c = give(a, t, i, '賄賂'); pm(a, `💰 賄賂: ${PN(t)}に ${nm(c)} を渡した`); pm(t, `💰 賄賂: ${PN(a)}から ${nm(c)} を受け取った(1回休み)`); S.nopair[t] = 1; m += `賄賂を渡した💰 ${PN(t)}は1回休み(次の番はペアを出せない)`; }
+      else { const i = await pick(a, '賄賂にするカードを選ぼう(サボり以外)', c => !c.j); const c = give(a, t, i, '賄賂'); pm(a, `💰 賄賂: ${PN(t)}に ${nm(c)} を渡した`); pm(t, `💰 賄賂: ${PN(a)}から ${nm(c)} を受け取った(1回休み)`); S.nopair[t] = 1; m += `賄賂を渡した💰 ${PN(t)}は1回休み(次の番はペアを出せない)`; }
     }
     else if (k === 'joho') {
       const ops = alive().filter(p => p !== a);
@@ -210,7 +210,7 @@ function startGame(r, hs) {
       for (const o of ops) if (hd(a).length) { const i = await pick(a, `${PN(o)}に渡すカードを選ぼう`); const c = give(a, o, i, '情報共有'); pm(o, `📢 情報共有: ${PN(a)}から ${nm(c)} を渡された`); pm(a, `📢 情報共有: ${PN(o)}に ${nm(c)} を渡した`); }
       m = '📢情報共有!全員が1枚ずつ渡し合った';
     }
-    else if (k === 'energy') { m = '⚡エナドリ!もう一度労働フェーズ'; if (hd(a).some(c => c.j)) { S.known = a; m += ' …残業カードを持っていると申告😰'; } }
+    else if (k === 'energy') { m = '⚡エナドリ!もう一度労働フェーズ'; if (hd(a).some(c => c.j)) { S.known = a; m += ' …サボりカードを持っていると申告😰'; } }
     else if (k === 'tabako') {
       const ti = T.findIndex(x => x.k === 'tabako'), s = [];
       S.P.forEach((_, p) => { const n = hd(p).filter(c => !c.j && c.t === ti).length; if (n) { S.hands[p] = hd(p).filter(c => c.j || c.t !== ti); s.push(`${PN(p)}${n}枚`); } });
@@ -285,13 +285,19 @@ http.createServer(async (req, res) => {
           startGame(r, r.pl.slice(0, 6));
         } else if (b.type === 'choose' && S && S.ph === 'play' && r.pending && S.prompt && S.prompt.n === b.n && S.P[S.prompt.p].id === p.id) {
           r.pending.fin(b.v);
+        } else if (b.type === 'order' && S && S.ph === 'play') {
+          const i = S.P.findIndex(x => x.id === p.id), h = i >= 0 && S.hands[i], q = S.prompt;
+          const lock = (q && (q.from === i || (q.p === i && q.hi))) || (S.hl && S.hl.p === i);
+          const ok = h && !lock && Array.isArray(b.perm) && b.perm.length === h.length && new Set(b.perm).size === h.length && b.perm.every(k => Number.isInteger(k) && k >= 0 && k < h.length);
+          if (!ok) return json(res, { error: 'locked' });
+          S.hands[i] = b.perm.map(k => h[k]); push(r);
         } else if (b.type === 'leave') removePlayer(r, p.id);
         return json(res, { ok: true });
       }
     }
     res.writeHead(404); res.end('not found');
   } catch (e) { console.error(e); try { res.writeHead(500); res.end('error'); } catch (e2) {} }
-}).listen(PORT, () => console.log('残業ゲーム server on :' + PORT));
+}).listen(PORT, () => console.log('サボりゲーム server on :' + PORT));
 
 setInterval(() => { for (const r of rooms.values()) for (const p of r.pl) if (p.res) p.res.write(': ping\n\n'); }, 15000);
 setInterval(() => { const now = Date.now(); for (const r of [...rooms.values()]) if (now - r.last > 3600e3 && !r.pl.some(p => p.res)) { r.dead = true; rooms.delete(r.code); } }, 60000);
