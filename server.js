@@ -52,7 +52,7 @@ function view(r, pid) {
   const mi = S.P.findIndex(x => x.id === pid);
   v.P = S.P.map((x, i) => ({ name: x.name, cpu: x.cpu, n: S.hands[i].length }));
   v.mi = mi; v.hand = mi >= 0 ? S.hands[mi].map(c => { const f = S.fresh[mi].get(c); return f ? { ...c, g: f.l } : c; }) : [];
-  v.out = S.out; v.turn = S.turn; v.phase = S.phase; v.known = S.known; v.msg = S.msg; v.hl = S.hl; v.log = S.log; v.loser = S.loser; v.rank = S.ph === 'over' ? rankOf(S) : null;
+  v.out = S.out; v.turn = S.turn; v.phase = S.phase; v.known = S.known; v.st = S.P.map((_, p) => (S.skip[p] ? '🍻飲み会中' : S.nopair[p] ? '💰賄賂中' : '')); v.msg = S.msg; v.hl = S.hl; v.log = S.log; v.loser = S.loser; v.rank = S.ph === 'over' ? rankOf(S) : null;
   v.pr = S.prompt ? (S.prompt.p === mi ? S.prompt : { p: S.prompt.p, from: S.prompt.from }) : null;
   v.pl = mi >= 0 ? S.pl[mi] : []; v.last = S.last;
   return v;
@@ -123,7 +123,7 @@ function startGame(r, hs, dbg) {
   const cfg = r.cfg, want = D ? D.n : (cfg.cpu >= 0 ? Math.min(hs.length + cfg.cpu, 6) : Math.max(3, hs.length));
   if (want < 2) throw new Error('2人以上必要です。CPUを増やすか、人を集めてください');
   while (P.length < want) P.push({ id: 'cpu' + k, name: cn[k++], cpu: 1 });
-  if (hs.length === 1 && !D) shuf(P); // ひとり用: 席順(=手番)をランダムにする
+  if (!D) shuf(P); // 席順(=手番)は毎回ランダム(入室順では決まらない)
   let hands;
   if (D) hands = D.hands;
   else {
