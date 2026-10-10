@@ -48,6 +48,7 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 #rfab{position:fixed;right:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:20;box-shadow:0 2px 8px #0008}
 #dbg input,#dbg select{padding:6px;border-radius:8px;border:1px solid #fff5;background:#0003;color:inherit;font-size:14px}.drow{display:flex;gap:6px;align-items:center;margin:5px 0}.drow b{width:64px;font-size:12px}.drow .dh{flex:1;min-width:0}.drow .dn{width:64px}.dg{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0}
 .crow{display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #fff1}.crow input,#ccpu{padding:5px;border-radius:8px;border:1px solid #fff5;background:#0003;color:inherit;font-size:14px;width:70px}#ccpu{width:auto}.crow input:disabled,#ccpu:disabled{opacity:.6}
+.rk{font-size:15px;text-align:left;margin:4px 0;padding:2px 8px;border-radius:6px}.rk.me{background:#f2b70033}.rk .sub{font-weight:400}
 </style></head><body>
 <main>
 <section id="open" class="felt hero"><div class="big">💼</div><h2>サボりゲーム</h2>
@@ -84,7 +85,7 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 <div id="cm" class="rmo" hidden><div class="rmb"><button class="go x" id="cmx">✕ 閉じる</button><div id="cmc"></div></div></div>
 <div id="rm" class="rmo" hidden><div class="rmb"><button class="go x" id="rmx">✕ 閉じる</button><div id="rmc" class="rt"></div></div></div>
 <button class="go" id="rfab">📖 ルール</button>
-<div id="end" hidden><div><span id="res"></span><br><button class="go" id="cfg2">⚙ ゲーム設定</button><button class="go" id="again"></button><button class="go" id="home">オープニングに戻る</button></div></div>
+<div id="end" hidden><div><span id="res"></span><div id="rank" style="margin:10px 0"></div><button class="go" id="cfg2">⚙ ゲーム設定</button><button class="go" id="again"></button><button class="go" id="home">オープニングに戻る</button></div></div>
 <script>
 if(/[?&]debug=1/.test(location.search))sessionStorage.setItem('zdbg','1');if(/[?&]debug=0/.test(location.search))sessionStorage.removeItem('zdbg');
 const DEBUG=sessionStorage.getItem('zdbg')==='1';
@@ -158,7 +159,7 @@ $('msg').textContent=own?pr.msg:(V.msg||'')+(pr&&!own?` ⏳${V.P[pr.p].name}の�
 const key=pr?pr.n+':'+pr.p:'';
 if(key!==lastKey){lastKey=key;const a=$('act');a.innerHTML='';
 if(own&&pr.opts&&!pr.hi)pr.opts.forEach((l,i)=>{const b=document.createElement('button');b.className='go';b.textContent=l;b.onclick=()=>{a.innerHTML='';respond(i)};a.appendChild(b)})}
-if(V.ph=='over'){$('res').textContent=V.loser==me?'😱 残業確定…あなたの負け!':`🎉 定時退社!\n${V.P[V.loser].name}が残業に…`;
+if(V.ph=='over'){$('rank').innerHTML=(V.rank||[]).map(x=>`<div class="rk${x.p==me?' me':''}"><b>${x.r}位</b>　${esc(V.P[x.p].name)} <span class="sub">${x.k=='out'?'定時退社🎉':x.k=='n'?x.n+'枚残り':'😴サボりを持っていた'}</span></div>`).join('');$('res').textContent=V.loser==me?'😱 残業確定…あなたの負け!':`🎉 定時退社!\n${V.P[V.loser].name}が残業に…`;
 const b=$('again'),h=V.host==V.me;b.disabled=!h;b.textContent=h?'もう一度':'ホストの操作待ち…'}}
 function ruleHtml(){const cards=T.map((t,i)=>`<li>${t.e}<b>${t.n}</b>(${cc(i,t)}枚): ${t.d}</li>`).join('');
 return `<h4>■ ターンの流れ</h4><p>手番は時計回りに進みます。自分のターンでは、次の2つを行い、②のあとに効果処理が入ります。</p>

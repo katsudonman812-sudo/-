@@ -33,6 +33,17 @@ function addPlayer(r, name) {
   r.pl.push(p);
   return p;
 }
+// 順位: 退社した順 → 残っている人(手札が少ない順) → 最後にサボりを持っていた人
+function rankOf(S) {
+  const L = S.loser, rows = [];
+  S.exits.forEach(p => { if (p !== L) rows.push({ p, k: 'out' }); });
+  S.P.map((_, p) => p).filter(p => !S.out[p] && p !== L).sort((a, b) => S.hands[a].length - S.hands[b].length)
+    .forEach(p => rows.push({ p, k: 'n', n: S.hands[p].length }));
+  rows.push({ p: L, k: 'loser' });
+  let r = 0, prev = -1;
+  rows.forEach((x, i) => { if (!(x.k === 'n' && x.n === prev)) r = i + 1; prev = x.k === 'n' ? x.n : -1; x.r = r; });
+  return rows;
+}
 function view(r, pid) {
   const S = r.S;
   const v = { code: r.code, me: pid, host: r.pl[0] && r.pl[0].id, ph: S ? S.ph : 'lobby', lobby: r.pl.map(p => ({ id: p.id, name: p.name, on: !!p.res })), cfg: r.cfg };
@@ -41,7 +52,7 @@ function view(r, pid) {
   const mi = S.P.findIndex(x => x.id === pid);
   v.P = S.P.map((x, i) => ({ name: x.name, cpu: x.cpu, n: S.hands[i].length }));
   v.mi = mi; v.hand = mi >= 0 ? S.hands[mi].map(c => { const f = S.fresh[mi].get(c); return f ? { ...c, g: f.l } : c; }) : [];
-  v.out = S.out; v.turn = S.turn; v.phase = S.phase; v.known = S.known; v.msg = S.msg; v.hl = S.hl; v.log = S.log; v.loser = S.loser;
+  v.out = S.out; v.turn = S.turn; v.phase = S.phase; v.known = S.known; v.msg = S.msg; v.hl = S.hl; v.log = S.log; v.loser = S.loser; v.rank = S.ph === 'over' ? rankOf(S) : null;
   v.pr = S.prompt ? (S.prompt.p === mi ? S.prompt : { p: S.prompt.p, from: S.prompt.from }) : null;
   v.pl = mi >= 0 ? S.pl[mi] : []; v.last = S.last;
   return v;
@@ -123,7 +134,7 @@ function startGame(r, hs, dbg) {
     hands = P.map(() => []);
     d.forEach((c, i) => hands[i % P.length].push(c));
   }
-  const S = r.S = { ph: 'play', counts: D ? T.map(t => t.c) : cfg.counts.slice(), P, hands, out: P.map(() => 0), skip: P.map(() => 0), nopair: P.map(() => 0), pl: P.map(() => []), fresh: P.map(() => new Map()), seq: 0, tseq: 0, last: null, log: [], turn: D ? D.first : 0, known: -1, msg: '', hl: null, prompt: null, loser: -1 };
+  const S = r.S = { ph: 'play', counts: D ? T.map(t => t.c) : cfg.counts.slice(), P, hands, out: P.map(() => 0), exits: [], skip: P.map(() => 0), nopair: P.map(() => 0), pl: P.map(() => []), fresh: P.map(() => new Map()), seq: 0, tseq: 0, last: null, log: [], turn: D ? D.first : 0, known: -1, msg: '', hl: null, prompt: null, loser: -1 };
   r.pending = null;
   const hd = p => S.hands[p], cpu = p => S.P[p].cpu, PN = p => S.P[p].name;
   const alive = () => S.P.map((_, i) => i).filter(i => !S.out[i]);
@@ -131,11 +142,11 @@ function startGame(r, hs, dbg) {
   const live = () => !r.dead && r.S === S;
   const lg = t => { S.log.push(t); if (S.log.length > 80) S.log.shift(); };
   const pm = (p, t) => { const a = S.pl[p]; a.push(t); if (a.length > 40) a.shift(); };
-  const tag = (p, c, l) => S.fresh[p].set(c, { l, s: ++S.seq });
+  const tag = (p, c, l) => { if (S.known === p) S.known = -1; S.fresh[p].set(c, { l, s: ++S.seq }); };
   const srt = () => {}; // 手札は自動で並び替えない(位置から残業が分からないように。並び替えは本人が行う)
-  const mv = (c, f) => { S.fresh[f].delete(c); if (c.j && S.known === f) S.known = -1; };
+  const mv = (c, f) => { S.fresh[f].delete(c); if (S.known === f) S.known = -1; }; // 手札が動いたら「サボり持ち」の表示は消える
   const give = (f, to, i, l) => { const c = hd(f).splice(i, 1)[0]; mv(c, f); hd(to).push(c); tag(to, c, l); return c; };
-  const chk = () => { let s = ''; S.P.forEach((_, p) => { if (!hd(p).length && !S.out[p]) { S.out[p] = 1; s += ` ${PN(p)}は定時退社!🎉`; } }); return s; };
+  const chk = () => { let s = ''; S.P.forEach((_, p) => { if (!hd(p).length && !S.out[p]) { S.out[p] = 1; S.exits.push(p); s += ` ${PN(p)}は定時退社!🎉`; } }); return s; };
   async function upd(m, ms = 0) {
     if (m != null) S.msg = m;
     srt();
