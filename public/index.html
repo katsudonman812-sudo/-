@@ -49,6 +49,8 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 #dbg input,#dbg select{padding:6px;border-radius:8px;border:1px solid #fff5;background:#0003;color:inherit;font-size:14px}.drow{display:flex;gap:6px;align-items:center;margin:5px 0}.drow b{width:64px;font-size:12px}.drow .dh{flex:1;min-width:0}.drow .dn{width:64px}.dg{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0}
 .crow{display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #fff1}.crow input,#ccpu{padding:5px;border-radius:8px;border:1px solid #fff5;background:#0003;color:inherit;font-size:14px;width:70px}#ccpu{width:auto}.crow input:disabled,#ccpu:disabled{opacity:.6}
 .rk{font-size:15px;text-align:left;margin:4px 0;padding:2px 8px;border-radius:6px}.rk.me{background:#f2b70033}.rk .sub{font-weight:400}
+#spd{padding:6px;border-radius:999px;border:1px solid #fff5;background:#0003;color:inherit;font-size:13px}
+#net{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:40;background:#c0392b;color:#fff;font-size:13px;font-weight:700;padding:6px 14px;border-radius:999px;box-shadow:0 2px 8px #0008}
 </style></head><body>
 <main>
 <section id="open" class="felt hero"><div class="big">💼</div><h2>サボりゲーム</h2>
@@ -75,22 +77,23 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 <div id="sR"></div>
 <div class="mine"><div id="me"></div><div id="info"></div><div class="sub" id="ctl" style="margin-top:6px"><button class="go" id="bshuf">🔀シャッフル</button> <button class="go" id="bsort">整列</button> ドラッグ、またはタップ→移動先をタップで並び替え</div></div></section>
 <aside class="side">
-<div class="box"><h3 id="hd"></h3><button class="go" id="bcp2">招待リンク</button> <button class="go" id="bleave">ロビーへ</button></div>
+<div class="box"><h3 id="hd"></h3><button class="go" id="bcp2">招待リンク</button> <button class="go" id="bleave">ロビーへ</button> <select id="spd" title="CPUの進む速さ"><option value="1">速さ: 超早い</option><option value="1.8">速さ: はやい</option><option value="3">速さ: ふつう</option><option value="5">速さ: おそい</option></select></div>
 <div class="box"><h3>プレイヤー</h3><div id="pls"></div></div>
 <div class="box"><h3>📋 行動ログ(全員に見える)</h3><div id="log" class="lg"></div></div>
 <div class="box priv"><h3>🔒 あなただけのログ(カードの移動)</h3><div id="plog" class="lg"></div></div>
 <div class="box"><h3>🃏 カード効果</h3><div id="rules"></div></div>
 </aside></div>
 </main>
+<div id="net" hidden>⚠ 接続が切れました。再接続しています…</div>
 <div id="cm" class="rmo" hidden><div class="rmb"><button class="go x" id="cmx">✕ 閉じる</button><div id="cmc"></div></div></div>
 <div id="rm" class="rmo" hidden><div class="rmb"><button class="go x" id="rmx">✕ 閉じる</button><div id="rmc" class="rt"></div></div></div>
 <button class="go" id="rfab">📖 ルール</button>
-<div id="end" hidden><div><span id="res"></span><div id="rank" style="margin:10px 0"></div><button class="go" id="cfg2">⚙ ゲーム設定</button><button class="go" id="again"></button><button class="go" id="home">オープニングに戻る</button></div></div>
+<div id="end" hidden><div><span id="res"></span><div id="rank" style="margin:10px 0"></div><button class="go" id="cfg2">⚙ ゲーム設定</button><button class="go" id="again"></button><button class="go" id="tolobby">ルームに戻る</button><button class="go" id="home">オープニングに戻る</button></div></div>
 <script>
 if(/[?&]debug=1/.test(location.search))sessionStorage.setItem('zdbg','1');if(/[?&]debug=0/.test(location.search))sessionStorage.removeItem('zdbg');
 const DEBUG=sessionStorage.getItem('zdbg')==='1';
 const cc=(i,t)=>V&&V.counts?V.counts[i]:t.c;
-let mv=null,T=[],V=null,sess=null,es=null,sent='',lastKey='',selT=-2,stick='手札にカーソルを合わせる(スマホはタップ)と効果が表示されます';
+let inLobby=false,mv=null,T=[],V=null,sess=null,es=null,sent='',lastKey='',selT=-2,stick='手札にカーソルを合わせる(スマホはタップ)と効果が表示されます';
 const $=id=>document.getElementById(id),D={1:[[],[0],[]],2:[[0],[],[1]],3:[[0],[1],[2]],4:[[0],[1,2],[3]],5:[[0,1],[2],[3,4]],6:[[0,1],[2,3],[4,5]]};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 try{sess=JSON.parse(localStorage.getItem('zg'))}catch(e){}
@@ -98,10 +101,15 @@ $('nm').value=localStorage.getItem('zname')||'';
 async function api(p,b){try{const r=await fetch('/api/'+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});return await r.json()}catch(e){return{error:'通信に失敗しました'}}}
 const act=(type,x={})=>api('act',{room:sess.room,pid:sess.pid,token:sess.token,type,...x});
 fetch('/cards.json').then(r=>r.json()).then(t=>{T=t;$('dnames').textContent='使えるカード名: '+t.map(x=>x.n+'('+x.c+'枚)').join('、')+'、サボり(1枚)';const q=new URLSearchParams(location.search).get('room');if(q)$('kw').value=q.toUpperCase();rRules0();if(sess)connect()});
-function connect(){if(es)es.close();es=new EventSource(`/api/events?room=${encodeURIComponent(sess.room)}&pid=${sess.pid}&token=${sess.token}`);
+let rt=0;const net=on=>{$('net').hidden=!on};
+const wake=()=>{if(sess&&(!es||es.readyState!==1))connect()};
+if(typeof addEventListener==='function'){addEventListener('online',wake);document.addEventListener('visibilitychange',()=>{if(!document.hidden)wake()})}
+function connect(){clearTimeout(rt);if(es)es.close();es=new EventSource(`/api/events?room=${encodeURIComponent(sess.room)}&pid=${sess.pid}&token=${sess.token}`);
+es.onopen=()=>{net(false);sent=''};
 es.onmessage=e=>{V=JSON.parse(e.data);render()};
+es.onerror=()=>{net(true);if(es&&es.readyState===2){clearTimeout(rt);rt=setTimeout(()=>{if(sess)connect()},2000)}};
 es.addEventListener('gone',()=>{es.close();es=null;reset();$('onote').textContent='ルームが見つかりません(終了した可能性があります)'})}
-function reset(){sess=null;V=null;localStorage.removeItem('zg');history.replaceState(null,'',location.pathname);render()}
+function reset(){sess=null;V=null;inLobby=false;localStorage.removeItem('zg');history.replaceState(null,'',location.pathname);render()}
 async function enter(p,b){const name=$('nm').value.trim();localStorage.setItem('zname',name);const r=await api(p,{...b,name});
 if(r.error){$('onote').textContent=r.error;return false}sess=r;localStorage.setItem('zg',JSON.stringify(r));history.replaceState(null,'','?room='+encodeURIComponent(r.room));connect();return true}
 const copy=b=>{const l=location.origin+'/?room='+encodeURIComponent(sess.room);(navigator.clipboard?navigator.clipboard.writeText(l):Promise.reject()).then(()=>b.textContent='コピーしました ✓',()=>prompt('招待リンク',l))};
@@ -129,8 +137,10 @@ document.querySelectorAll('#cmc .cn').forEach((x,i)=>{if(document.activeElement!
 $('ctot').textContent=`デッキ合計: ${g.counts.reduce((a,b)=>a+b,0)+1}枚(サボり含む)`}
 const cfgOpen=on=>{if(on&&V)buildCfg();$('cm').hidden=!on};
 $('bcfg').onclick=()=>cfgOpen(true);$('cfg2').onclick=()=>cfgOpen(true);$('cmx').onclick=()=>cfgOpen(false);$('cm').onclick=e=>{if(e.target==$('cm'))cfgOpen(false)};
-$('bback').onclick=leave;$('bleave').onclick=leave;$('home').onclick=leave;$('again').onclick=()=>{if(V&&V.host==V.me)act('start')};
-function render(){const v=!V?'open':V.ph=='lobby'?'lobby':'game';if(!$('cm').hidden)V?syncCfg():cfgOpen(false);$('dbg').hidden=!(DEBUG&&v=='open');['open','lobby','game'].forEach(x=>$(x).hidden=x!=v);$('end').hidden=!(v=='game'&&V.ph=='over');
+$('spd').onchange=()=>act('speed',{v:+$('spd').value});
+$('bback').onclick=leave;$('bleave').onclick=leave;$('home').onclick=leave;$('tolobby').onclick=()=>{inLobby=true;render()};
+$('again').onclick=()=>{if(V&&V.host==V.me)act('start')};
+function render(){if(V&&V.ph=='play')inLobby=false;const v=!V?'open':(V.ph=='lobby'||(V.ph=='over'&&inLobby))?'lobby':'game';if(!$('cm').hidden)V?syncCfg():cfgOpen(false);$('dbg').hidden=!(DEBUG&&v=='open');['open','lobby','game'].forEach(x=>$(x).hidden=x!=v);$('end').hidden=!(v=='game'&&V.ph=='over');
 $('rd').hidden=v=='game';if(v=='lobby')rLobby();if(v=='game')rGame()}
 function rLobby(){$('code').textContent=V.code;
 $('plist').innerHTML=V.lobby.map(x=>`<li>${x.id==V.host?'👑':'👤'} ${esc(x.name)}${x.id==V.me?'(あなた)':''}${x.on?'':' ⚠切断中'}</li>`).join('');
@@ -151,7 +161,7 @@ const L=V.last;$('field').innerHTML=L?`<div class="fld"><div class="c">${cardH({
 const cn={};V.hand.forEach(c=>{if(!c.j)cn[c.t]=(cn[c.t]||0)+1});
 $('me').innerHTML=me<0?'<div class="nm">👀 観戦中</div>':nmL(me)+'<div class="hand">'+V.hand.map((c,i)=>{const pa=!c.j&&cn[c.t]>1;
 return`<div class="c${c.j?' joker':''}${pa?' pair':''}${hi&&hi.includes(i)?' sel':''}${mv===i?' mvsel':''}${ex.includes(i)?' ex':''}${V.hl&&V.hl.p==me&&V.hl.i==i?' h':''}" data-i="${i}" data-t="${c.j?-1:c.t}" draggable="true">${cardH(c,(c.g?`<b class="tg">${esc(c.g)}</b>`:'')+(pa?'<u>ペア</u>':''))}</div>`}).join('')+'</div>';
-$('hd').textContent='ルーム '+V.code;
+$('hd').textContent='ルーム '+V.code;$('spd').value=V.speed;$('spd').disabled=V.host!=V.me;
 $('pls').innerHTML=V.P.map((x,p)=>`<div class="${V.turn==p&&play?'cur':''}">${V.turn==p&&play?'▶':'　'}${esc(x.name)}${p==me?'(あなた)':''} — ${V.out[p]?'🎉退社':x.n+'枚'}</div>`).join('');
 const fill=(id,a)=>{const e=$(id);e.innerHTML=a.map(x=>`<div>${esc(x)}</div>`).join('')||'<div class="sub">まだありません</div>';e.scrollTop=e.scrollHeight};
 fill('log',V.log||[]);fill('plog',V.pl||[]);rRules(cn);
@@ -183,7 +193,7 @@ function rRules(cn){if(!T.length)return;const h=V?V.hand:[],j=h.filter(c=>c.j).l
 $('rules').innerHTML=T.map((t,i)=>`<div class="rl${selT==i?' on':''}"><b>${t.e}${t.n}</b> ${cc(i,t)}枚${cn&&cn[i]?` <em>手札${cn[i]}</em>`:''}<br><span>${t.d}</span></div>`).join('')+
 `<div class="rl${selT==-1?' on':''}"><b>😴サボり</b> 1枚${j?' <em>手札にあり!</em>':''}<br><span>最後まで持っていたら負け。社長で暴かれても負け</span></div>
 <div class="rl"><span>ペアを出すと効果発動。手札がなくなったら定時退社🎉</span></div>`}
-function respond(v){const pr=V&&V.pr;if(!pr||pr.p!=V.mi)return;const k=pr.n;if(sent==k)return;sent=k;act('choose',{n:pr.n,v})}
+function respond(v){const pr=V&&V.pr;if(!pr||pr.p!=V.mi)return;const k=pr.n;if(sent==k)return;sent=k;act('choose',{n:pr.n,v}).then(r=>{if(!r||r.error)sent=''})}
 $('sT').onclick=$('sL').onclick=$('sR').onclick=e=>{const b=e.target.closest('.b.t');if(b)respond(+b.dataset.i)};
 const infoText=t=>t<0?'😴サボり: 最後まで持っていたら負け。社長で暴かれても負け':`${T[t].e}${T[t].n}(${T[t].c}枚): ${T[t].d}`;
 const show=t=>{selT=t;$('info').textContent=infoText(t);rRules(V&&V.hand.reduce((m,c)=>(c.j||(m[c.t]=(m[c.t]||0)+1),m),{}))};

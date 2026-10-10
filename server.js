@@ -24,7 +24,7 @@ const cleanKey = s => String(s || '').replace(/[\s<>&"'`\/\\?#%]/g, '').slice(0,
 function mkRoom(key) {
   let code = key;
   if (!code) do { code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[rnd(24)]).join(''); } while (rooms.has(code));
-  const r = { code, pl: [], S: null, pending: null, pn: 0, last: Date.now(), cfg: { cpu: -1, counts: T.map(t => t.c) } };
+  const r = { code, pl: [], S: null, pending: null, pn: 0, last: Date.now(), cfg: { cpu: -1, counts: T.map(t => t.c), speed: 1 } };
   rooms.set(code, r);
   return r;
 }
@@ -47,7 +47,7 @@ function rankOf(S) {
 function view(r, pid) {
   const S = r.S;
   const v = { code: r.code, me: pid, host: r.pl[0] && r.pl[0].id, ph: S ? S.ph : 'lobby', lobby: r.pl.map(p => ({ id: p.id, name: p.name, on: !!p.res })), cfg: r.cfg };
-  v.counts = S ? S.counts : r.cfg.counts;
+  v.counts = S ? S.counts : r.cfg.counts; v.speed = r.cfg.speed;
   if (!S) return v;
   const mi = S.P.findIndex(x => x.id === pid);
   v.P = S.P.map((x, i) => ({ name: x.name, cpu: x.cpu, n: S.hands[i].length }));
@@ -116,6 +116,7 @@ function debugDeal(spec) {
 }
 
 function startGame(r, hs, dbg) {
+  const wait = ms => new Promise(res => setTimeout(res, ms * SCALE * (r.cfg.speed || 1))); // 演出の待ち時間(部屋ごとに速さを変えられる)
   const D = dbg ? debugDeal(dbg) : null;
   const P = hs.map(h => ({ id: h.id, name: h.name, cpu: 0 })), cn = shuf(ROBOTS.slice()).map(n => '🤖' + n); // CPU名: 実在ロボットの名前からランダム(重複なし)
   let k = 0;
@@ -161,7 +162,7 @@ function startGame(r, hs, dbg) {
       const pl = r.pl.find(x => x.id === S.P[p].id);
       r.pending = { n, tm: 0, fin: v => fin(Number.isInteger(v) && v >= 0 && v < len ? v : rnd(len)) };
       r.pending.arm = ms => { clearTimeout(r.pending.tm); r.pending.tm = setTimeout(() => fin(rnd(len)), ms); };
-      r.pending.arm(pl && pl.res ? 60000 : 3000);
+      r.pending.arm(pl && pl.res ? 60000 : 20000); // 切断中でも、少しの間は戻ってくるのを待つ
       S.prompt = { p, n, msg, opts, from, hi, ex };
       upd(msg);
     });
@@ -320,9 +321,9 @@ http.createServer(async (req, res) => {
         if (p.res !== res) return;
         p.res = null;
         const S = r.S;
-        if (S && S.ph === 'play' && r.pending && S.prompt && S.P[S.prompt.p].id === p.id) r.pending.arm(3000);
+        if (S && S.ph === 'play' && r.pending && S.prompt && S.P[S.prompt.p].id === p.id) r.pending.arm(20000);
         push(r);
-        setTimeout(() => { if (!p.res && r.pl.includes(p) && !(S && r.S === S && S.ph === 'play')) removePlayer(r, p.id); }, 30000);
+        setTimeout(() => { if (!p.res && r.pl.includes(p) && !(S && r.S === S && S.ph === 'play')) removePlayer(r, p.id); }, 300000);
       });
       return;
     }
@@ -345,7 +346,12 @@ http.createServer(async (req, res) => {
           r = mkRoom(key);
         }
         if (!r) return json(res, { error: 'ルームが見つかりません' });
-        if (r.S && r.S.ph === 'play') return json(res, { error: 'ゲーム中のため参加できません。終わるまで待ってください' });
+        const nm0 = clean(b.name) || '名無しの労働者', ghost = r.pl.find(x => !x.res && x.name === nm0);
+        if (ghost) { // 切断中の同名の席があれば、そこに復帰する(ブラウザを変えたり、保存が消えた場合の救済)
+          ghost.token = crypto.randomBytes(12).toString('hex'); push(r);
+          return json(res, { room: r.code, pid: ghost.id, token: ghost.token, back: true });
+        }
+        if (r.S && r.S.ph === 'play') return json(res, { error: 'ゲーム中のため参加できません。終わるまで待ってください(切断した人は、同じ名前で入り直すと戻れます)' });
         if (r.pl.length >= 6) return json(res, { error: 'ルームが満員です(最大6人)' });
         const p = addPlayer(r, b.name); push(r);
         return json(res, { room: r.code, pid: p.id, token: p.token });
@@ -369,7 +375,9 @@ http.createServer(async (req, res) => {
         } else if (b.type === 'cfg' && r.pl[0] === p && (!S || S.ph === 'over')) {
           const c = parseInt(b.cpu), ok = Array.isArray(b.counts) && b.counts.length === T.length && b.counts.every(k => Number.isInteger(k) && k >= 0 && k <= 8 && k % 2 === 0); // 奇数だとペアにならない札が残り、ゲームが終わらなくなる
           if (!ok || !(c >= -1 && c <= 5)) return json(res, { error: 'bad cfg' });
-          r.cfg = { cpu: c, counts: b.counts.slice() }; push(r);
+          r.cfg = { cpu: c, counts: b.counts.slice(), speed: r.cfg.speed }; push(r);
+        } else if (b.type === 'speed' && r.pl[0] === p && [1, 1.8, 3, 5].includes(+b.v)) { // CPUの進む速さ(いつでもホストが変更可)
+          r.cfg.speed = +b.v; push(r);
         } else if (b.type === 'leave') removePlayer(r, p.id);
         return json(res, { ok: true });
       }
