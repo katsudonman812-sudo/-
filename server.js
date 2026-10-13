@@ -24,7 +24,7 @@ const cleanKey = s => String(s || '').replace(/[\s<>&"'`\/\\?#%]/g, '').slice(0,
 function mkRoom(key) {
   let code = key;
   if (!code) do { code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[rnd(24)]).join(''); } while (rooms.has(code));
-  const r = { code, pl: [], S: null, pending: null, pn: 0, spec: [], last: Date.now(), cfg: { cpu: -1, counts: T.map(t => t.c), speed: 1 } };
+  const r = { code, pl: [], S: null, pending: null, pn: 0, spec: [], chat: [], last: Date.now(), cfg: { cpu: -1, counts: T.map(t => t.c), speed: 1 } };
   rooms.set(code, r);
   return r;
 }
@@ -47,7 +47,7 @@ function rankOf(S) {
 }
 function view(r, pid) {
   const S = r.S;
-  const v = { code: r.code, me: pid, host: r.pl[0] && r.pl[0].id, ph: S ? S.ph : 'lobby', lobby: r.pl.map(p => ({ id: p.id, name: p.name, on: !!p.res })), cfg: r.cfg };
+  const v = { code: r.code, me: pid, host: r.pl[0] && r.pl[0].id, ph: S ? S.ph : 'lobby', lobby: r.pl.map(p => ({ id: p.id, name: p.name, on: !!p.res })), cfg: r.cfg, chat: r.chat.slice(-40) };
   v.counts = S ? S.counts : r.cfg.counts; v.speed = r.cfg.speed;
   if (!S) return v;
   const mi = S.P.findIndex(x => x.id === pid);
@@ -372,6 +372,11 @@ http.createServer(async (req, res) => {
         const a = auth(b.room, b.pid, b.token);
         if (!a) return json(res, { error: 'auth' }, 403);
         const { r, p } = a, S = r.S;
+        if (b.type === 'chat') { // チャット(ルームの全員・観戦者にも見える)
+          const t = String(b.text || '').replace(/[\r\n]+/g, ' ').trim().slice(0, 100), now = Date.now();
+          if (t && now - (p.ct || 0) > 400) { p.ct = now; r.chat.push({ id: p.id, n: p.name, t, ts: now }); if (r.chat.length > 100) r.chat.shift(); push(r); }
+          return json(res, { ok: true });
+        }
         if (r.spec.includes(p)) { // 観戦者の操作
           if (b.type === 'watch' && S && S.ph === 'play') { const k = parseInt(b.p); p.watch = k >= 0 && k < S.P.length ? k : -1; push(r); }
           else if (b.type === 'leave') { r.spec.splice(r.spec.indexOf(p), 1); if (p.res) { try { p.res.end(); } catch (e) {} p.res = null; } push(r); }

@@ -53,6 +53,11 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 #net{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:40;background:#c0392b;color:#fff;font-size:13px;font-weight:700;padding:6px 14px;border-radius:999px;box-shadow:0 2px 8px #0008}
 .stt{display:inline-block;background:var(--acc);color:#222;font-size:11px;font-weight:800;padding:0 7px;border-radius:999px;margin-left:3px}
 .wb{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.wbtn.on{outline:3px solid #19b5ff}#wv .hand .c{cursor:default}
+.tabs{display:flex;gap:4px;margin-bottom:6px}.tb{flex:1;min-width:0;padding:6px 2px;font-size:12px;border:1px solid var(--bd);background:transparent;color:inherit;border-radius:8px;cursor:pointer;white-space:nowrap}.tb.on{background:var(--acc);color:#222;font-weight:800;border-color:var(--acc)}
+.pane h3.ph{margin-top:8px;color:#ff8fb3}.cm{max-height:240px;min-height:110px}.cmsg{margin:3px 0;word-break:break-word}.cmsg.mine{color:#9fe3b6}.cmsg b{color:var(--acc);margin-right:4px}
+.cin{display:flex;gap:6px;margin-top:6px}.cin input{flex:1;min-width:0;padding:7px;border-radius:8px;border:1px solid #fff5;background:#0003;color:inherit;font-size:14px}
+.hb{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:space-between}.hb b{color:var(--acc);font-size:13px}.hb .hbtn{display:flex;gap:6px;flex-wrap:wrap}.hb select{padding:4px;font-size:12px;border-radius:8px;background:#0003;color:inherit;border:1px solid #fff5}
+.go.sm{font-size:12px;padding:5px 10px}.lchat{margin:10px 0;text-align:left}#open{position:relative}#ver{position:absolute;right:10px;bottom:6px;font-size:11px;opacity:.65}
 </style></head><body>
 <main>
 <section id="open" class="felt hero"><div class="big">💼</div><h2>サボりゲーム</h2>
@@ -61,7 +66,7 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 <button class="go" id="bsolo">ひとりで遊ぶ(CPU対戦)</button>
 <input id="kw" maxlength="12" placeholder="部屋の名前(3〜12文字)">
 <button class="go" id="bcre">みんなで遊ぶ</button>
-<p id="onote" class="sub"></p></section>
+<p id="onote" class="sub"></p><div id="ver">ver1.18</div></section>
 <details id="dbg" class="felt" hidden style="margin-top:10px"><summary style="cursor:pointer;font-weight:700">🛠 デバッグ(条件を指定してひとりで遊ぶ)</summary>
 <div class="dg"><label>CPUの人数 <select id="dcpu"></select></label> <label>最初の手番 <select id="dfirst"></select></label></div>
 <div id="drows"></div>
@@ -70,20 +75,21 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 <section id="lobby" class="felt" hidden>
 <div class="nm">部屋の名前</div><div id="code"></div>
 <div style="text-align:center;margin:8px"><button class="go" id="bcopy">招待リンクをコピー</button></div>
-<ul id="plist"></ul><div style="text-align:center;margin:6px"><button class="go" id="bcfg">⚙ ゲーム設定</button><div class="sub" id="lcfg"></div></div><p id="lnote"></p><p class="sub">CPUの人数とカード枚数は、ゲーム設定で変えられます(人間とCPUで最大6人)。</p>
+<ul id="plist"></ul><div class="box lchat"><h3>💬 チャット</h3><div id="lcmsg" class="lg cm"></div><div class="cin"><input id="lcin" maxlength="100" placeholder="メッセージ(Enterで送信)"><button class="go sm" id="lcsend">送信</button></div></div><div style="text-align:center;margin:6px"><button class="go" id="bcfg">⚙ ゲーム設定</button><div class="sub" id="lcfg"></div></div><p id="lnote"></p><p class="sub">CPUの人数とカード枚数は、ゲーム設定で変えられます(人間とCPUで最大6人)。</p>
 <div style="display:flex;gap:8px;justify-content:center"><button class="go" id="bs">ゲーム開始</button><button class="go" id="bback">やめる</button></div></section>
 <details id="rd" class="felt" style="margin-top:10px"><summary style="cursor:pointer;font-weight:700">🃏 カード効果・ルールを見る</summary><div id="rules0" style="font-size:13px;line-height:1.7;margin-top:8px"></div></details>
 <div id="game" class="layout" hidden>
 <section class="table"><div id="sT"></div><div id="sL"></div>
 <div class="center"><div id="trn" class="trn"></div><div id="field"></div><p id="msg" aria-live="polite"></p><div id="act"></div></div>
 <div id="sR"></div>
-<div class="mine"><div id="me"></div><div id="info"></div><div id="wv" hidden></div><div class="sub" id="ctl" style="margin-top:6px"><button class="go" id="bshuf">🔀シャッフル</button> <button class="go" id="bsort">整列</button> ドラッグ、またはタップ→移動先をタップで並び替え</div></div></section>
+<div class="mine"><div id="me"></div><div id="info"></div><div id="wv" hidden></div><div class="sub" id="ctl" style="margin-top:6px"><button class="go sm" id="bshuf">🔀 シャッフル</button> <button class="go sm" id="bsort">整列</button> ドラッグ/タップで並び替え</div></div></section>
 <aside class="side">
-<div class="box"><h3 id="hd"></h3><button class="go" id="bcp2">招待リンク</button> <button class="go" id="bleave">ロビーへ</button> <select id="spd" title="CPUの進む速さ"><option value="1">速さ: 超早い</option><option value="1.8">速さ: はやい</option><option value="3">速さ: ふつう</option><option value="5">速さ: おそい</option></select></div>
-<div class="box"><h3>プレイヤー</h3><div id="pls"></div></div>
-<div class="box"><h3>📋 行動ログ(全員に見える)</h3><div id="log" class="lg"></div></div>
-<div class="box priv"><h3>🔒 あなただけのログ(カードの移動)</h3><div id="plog" class="lg"></div></div>
-<div class="box"><h3>🃏 カード効果</h3><div id="rules"></div></div>
+<div class="box hb"><b id="hd"></b><span class="hbtn"><select id="spd" title="CPUの進む速さ"><option value="1">速さ: 超早い</option><option value="1.8">速さ: はやい</option><option value="3">速さ: ふつう</option><option value="5">速さ: おそい</option></select><button class="go sm" id="bcp2">🔗 招待</button><button class="go sm" id="bleave">ロビーへ</button></span></div>
+<div class="box"><div class="tabs" id="tabs"><button class="tb on" data-t="log">📋 ログ</button><button class="tb" data-t="chat" id="tchat">💬 チャット</button><button class="tb" data-t="cards">🃏 カード</button><button class="tb" data-t="pls">👥 みんな</button></div>
+<div id="p_log" class="pane"><h3>全体のログ</h3><div id="log" class="lg"></div><h3 class="ph">🔒 あなただけのログ(カードの移動)</h3><div id="plog" class="lg"></div></div>
+<div id="p_chat" class="pane" hidden><div id="cmsg" class="lg cm"></div><div class="cin"><input id="cin" maxlength="100" placeholder="メッセージ(Enterで送信)"><button class="go sm" id="csend">送信</button></div></div>
+<div id="p_cards" class="pane" hidden><div id="rules"></div></div>
+<div id="p_pls" class="pane" hidden><div id="pls"></div></div></div>
 </aside></div>
 </main>
 <div id="net" hidden>⚠ 接続が切れました。再接続しています…</div>
@@ -141,8 +147,19 @@ const cfgOpen=on=>{if(on&&V)buildCfg();$('cm').hidden=!on};
 $('bcfg').onclick=()=>cfgOpen(true);$('cfg2').onclick=()=>cfgOpen(true);$('cmx').onclick=()=>cfgOpen(false);$('cm').onclick=e=>{if(e.target==$('cm'))cfgOpen(false)};
 $('spd').onchange=()=>act('speed',{v:+$('spd').value});
 $('bback').onclick=leave;$('bleave').onclick=leave;$('home').onclick=leave;$('tolobby').onclick=()=>{inLobby=true;render()};
+// ---- タブ・チャット ----
+let tab='log',chatSeen=-1,chatKey='';
+const lastTs=()=>V&&V.chat&&V.chat.length?V.chat[V.chat.length-1].ts:0;
+function setTab(t){tab=t;['log','chat','cards','pls'].forEach(x=>{$('p_'+x).hidden=x!=t});document.querySelectorAll('.tb').forEach(b=>b.classList.toggle('on',b.dataset.t==t));chatKey='';renderChat()}
+function renderChat(){if(!V)return;if(chatSeen<0)chatSeen=lastTs();const k=(V.chat||[]).length+':'+lastTs()+':'+tab;
+if(k!==chatKey){chatKey=k;const h=(V.chat||[]).map(m=>`<div class="cmsg${m.id==V.me?' mine':''}"><b>${esc(m.n)}</b>${esc(m.t)}</div>`).join('')||'<div class="sub">まだメッセージはありません</div>';
+['cmsg','lcmsg'].forEach(id=>{const e=$(id);e.innerHTML=h;e.scrollTop=e.scrollHeight})}
+if(tab=='chat')chatSeen=lastTs();$('tchat').textContent='💬 チャット'+(lastTs()>chatSeen?' ●':'')}
+const sendChat=i=>{const t=i.value.trim();if(!t||!sess)return;i.value='';act('chat',{text:t})};
+$('tabs').onclick=e=>{const b=e.target.closest('.tb');if(b)setTab(b.dataset.t)};
+[['cin','csend'],['lcin','lcsend']].forEach(([i,b])=>{$(b).onclick=()=>sendChat($(i));$(i).onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing)sendChat($(i))}});
 function render(){if(V&&V.ph=='play')inLobby=false;const v=!V?'open':(V.ph=='lobby'||(V.ph=='over'&&inLobby))?'lobby':'game';if(!$('cm').hidden)V?syncCfg():cfgOpen(false);$('dbg').hidden=!(DEBUG&&v=='open');['open','lobby','game'].forEach(x=>$(x).hidden=x!=v);$('end').hidden=!(v=='game'&&V.ph=='over');
-$('rd').hidden=v=='game';if(v=='lobby')rLobby();if(v=='game')rGame()}
+$('rd').hidden=v=='game';if(v=='lobby')rLobby();if(v=='game')rGame();if(V)renderChat()}
 function rLobby(){$('code').textContent=V.code;
 $('plist').innerHTML=V.lobby.map(x=>`<li>${x.id==V.host?'👑':'👤'} ${esc(x.name)}${x.id==V.me?'(あなた)':''}${x.on?'':' ⚠切断中'}</li>`).join('');
 const n=V.lobby.length,g=V.cfg,c=g.cpu>=0?Math.min(g.cpu,Math.max(0,6-n)):Math.max(0,3-n),isH=V.host==V.me,tot=g.counts.reduce((a,b)=>a+b,0)+1,chg=T.some((t,i)=>g.counts[i]!=t.c);
