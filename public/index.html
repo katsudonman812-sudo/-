@@ -52,6 +52,7 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 #spd{padding:6px;border-radius:999px;border:1px solid #fff5;background:#0003;color:inherit;font-size:13px}
 #net{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:40;background:#c0392b;color:#fff;font-size:13px;font-weight:700;padding:6px 14px;border-radius:999px;box-shadow:0 2px 8px #0008}
 .stt{display:inline-block;background:var(--acc);color:#222;font-size:11px;font-weight:800;padding:0 7px;border-radius:999px;margin-left:3px}
+.wb{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.wbtn.on{outline:3px solid #19b5ff}#wv .hand .c{cursor:default}
 </style></head><body>
 <main>
 <section id="open" class="felt hero"><div class="big">💼</div><h2>サボりゲーム</h2>
@@ -76,7 +77,7 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 <section class="table"><div id="sT"></div><div id="sL"></div>
 <div class="center"><div id="trn" class="trn"></div><div id="field"></div><p id="msg" aria-live="polite"></p><div id="act"></div></div>
 <div id="sR"></div>
-<div class="mine"><div id="me"></div><div id="info"></div><div class="sub" id="ctl" style="margin-top:6px"><button class="go" id="bshuf">🔀シャッフル</button> <button class="go" id="bsort">整列</button> ドラッグ、またはタップ→移動先をタップで並び替え</div></div></section>
+<div class="mine"><div id="me"></div><div id="info"></div><div id="wv" hidden></div><div class="sub" id="ctl" style="margin-top:6px"><button class="go" id="bshuf">🔀シャッフル</button> <button class="go" id="bsort">整列</button> ドラッグ、またはタップ→移動先をタップで並び替え</div></div></section>
 <aside class="side">
 <div class="box"><h3 id="hd"></h3><button class="go" id="bcp2">招待リンク</button> <button class="go" id="bleave">ロビーへ</button> <select id="spd" title="CPUの進む速さ"><option value="1">速さ: 超早い</option><option value="1.8">速さ: はやい</option><option value="3">速さ: ふつう</option><option value="5">速さ: おそい</option></select></div>
 <div class="box"><h3>プレイヤー</h3><div id="pls"></div></div>
@@ -150,7 +151,7 @@ $('lnote').textContent=`参加者${n}人 + CPU${c}人で開始します`+(n+c<2?
 $('bs').hidden=!isH;if(!isH)$('lnote').textContent+=' / ホストの開始を待っています'}
 const cardH=(c,x='')=>`<i>${c.j?'😴':T[c.t].e}</i><span>${c.j?'サボり':T[c.t].n}</span>${x}`;
 function rGame(){
-if(mv!==null&&mv>=V.hand.length)mv=null;$('ctl').hidden=V.mi<0;
+if(mv!==null&&mv>=V.hand.length)mv=null;$('ctl').hidden=V.mi<0||!!V.out[V.mi];
 const me=V.mi,pr=V.pr,own=pr&&pr.p==me,n=V.P.length,play=V.ph=='play',hi=own&&pr.hi||null,ex=own&&pr.ex||[];
 const stt=p=>V.st&&V.st[p]&&!V.out[p]?` <span class="stt">${V.st[p]}</span>`:'';
 const nmL=p=>`<div class="nm">${V.turn==p&&play?'▶ ':''}${esc(V.P[p].name)} ${V.out[p]?'🎉退社':V.P[p].n+'枚'}${V.known==p&&!V.out[p]?' 👀サボり持ち':''}${stt(p)}</div>`;
@@ -160,8 +161,10 @@ const cnt=me<0?n:n-1,o=Array.from({length:cnt},(_,k)=>me<0?k:(me+1+k)%n),dd=D[cn
 $('trn').textContent=V.phase&&play&&V.turn>=0?`【${V.P[V.turn].name}】のターン　【${V.phase}】中`:'';
 const L=V.last;$('field').innerHTML=L?`<div class="fld"><div class="c">${cardH({t:L.t})}</div><div class="c">${cardH({t:L.t})}</div><div>${esc(V.P[L.p].name)}が<br>出した</div></div>`:'';
 const cn={};V.hand.forEach(c=>{if(!c.j)cn[c.t]=(cn[c.t]||0)+1});
-$('me').innerHTML=me<0?'<div class="nm">👀 観戦中</div>':nmL(me)+'<div class="hand">'+V.hand.map((c,i)=>{const pa=!c.j&&cn[c.t]>1;
+$('me').innerHTML=me<0?`<div class="nm">👀 観戦中${V.spec?'(ゲームが終わると、参加者になります)':''}</div>`:nmL(me)+'<div class="hand">'+V.hand.map((c,i)=>{const pa=!c.j&&cn[c.t]>1;
 return`<div class="c${c.j?' joker':''}${pa?' pair':''}${hi&&hi.includes(i)?' sel':''}${mv===i?' mvsel':''}${ex.includes(i)?' ex':''}${V.hl&&V.hl.p==me&&V.hl.i==i?' h':''}" data-i="${i}" data-t="${c.j?-1:c.t}" draggable="true">${cardH(c,(c.g?`<b class="tg">${esc(c.g)}</b>`:'')+(pa?'<u>ペア</u>':''))}</div>`}).join('')+'</div>';
+const watching=(me<0||!!V.out[me])&&play;$('wv').hidden=!watching;
+if(watching){const w=V.watch;$('wv').innerHTML=`<div class="nm">${me<0?'👀 観戦中':'🎉 退社済み'} — 見たいプレイヤーを選ぶと、その人の手札が見られます</div><div class="wb">`+V.P.map((x,p)=>p==me||V.out[p]?'':`<button class="go wbtn${w&&w.p==p?' on':''}" data-p="${p}">${esc(x.name)}(${x.n}枚)</button>`).join('')+'</div>'+(w?`<div class="nm">${esc(V.P[w.p].name)}の手札</div><div class="hand">`+w.hand.map(c=>`<div class="c${c.j?' joker':''}" data-t="${c.j?-1:c.t}">${cardH(c)}</div>`).join('')+'</div>':'')}
 $('hd').textContent='ルーム '+V.code;$('spd').value=V.speed;$('spd').disabled=V.host!=V.me;
 $('pls').innerHTML=V.P.map((x,p)=>`<div class="${V.turn==p&&play?'cur':''}">${V.turn==p&&play?'▶':'　'}${esc(x.name)}${p==me?'(あなた)':''} — ${V.out[p]?'🎉退社':x.n+'枚'}${stt(p)}</div>`).join('');
 const fill=(id,a)=>{const e=$(id);e.innerHTML=a.map(x=>`<div>${esc(x)}</div>`).join('')||'<div class="sub">まだありません</div>';e.scrollTop=e.scrollHeight};
@@ -170,7 +173,7 @@ $('msg').textContent=own?pr.msg:(V.msg||'')+(pr&&!own?` ⏳${V.P[pr.p].name}の�
 const key=pr?pr.n+':'+pr.p:'';
 if(key!==lastKey){lastKey=key;const a=$('act');a.innerHTML='';
 if(own&&pr.opts&&!pr.hi)pr.opts.forEach((l,i)=>{const b=document.createElement('button');b.className='go';b.textContent=l;b.onclick=()=>{a.innerHTML='';respond(i)};a.appendChild(b)})}
-if(V.ph=='over'){$('rank').innerHTML=(V.rank||[]).map(x=>`<div class="rk${x.p==me?' me':''}"><b>${x.r}位</b>　${esc(V.P[x.p].name)} <span class="sub">${x.k=='out'?'定時退社🎉':x.k=='n'?x.n+'枚残り':'😴サボりを持っていた'}</span></div>`).join('');$('res').textContent=V.loser==me?'😱 残業確定…あなたの負け!':`🎉 定時退社!\n${V.P[V.loser].name}が残業に…`;}}
+if(V.ph=='over'){$('rank').innerHTML=(V.rank||[]).map(x=>`<div class="rk${x.p==me?' me':''}"><b>${x.r}位</b>　${esc(V.P[x.p].name)} <span class="sub">${x.k=='out'?'定時退社🎉':x.k=='boss'?'👔社長でサボりを当てた':x.k=='n'?x.n+'枚残り':'😴サボりを持っていた'}</span></div>`).join('');$('res').textContent=V.loser==me?'😱 残業確定…あなたの負け!':`🎉 定時退社!\n${V.P[V.loser].name}が残業に…`;}}
 function ruleHtml(){const cards=T.map((t,i)=>`<li>${t.e}<b>${t.n}</b>(${cc(i,t)}枚): ${t.d}</li>`).join('');
 return `<h4>■ ターンの流れ</h4><p>手番は時計回りに進みます。自分のターンでは、次の2つを行い、②のあとに効果処理が入ります。</p>
 <ul><li><b>① カードを1枚引く【労働】(必須)</b><br>次の手番の人(画面で水色の枠に光っている人)の手札から、カードを1枚引きます。</li>
@@ -198,6 +201,8 @@ $('sT').onclick=$('sL').onclick=$('sR').onclick=e=>{const b=e.target.closest('.b
 const infoText=t=>t<0?'😴サボり: 最後まで持っていたら負け。社長で暴かれても負け':`${T[t].e}${T[t].n}(${T[t].c}枚): ${T[t].d}`;
 const show=t=>{selT=t;$('info').textContent=infoText(t);rRules(V&&V.hand.reduce((m,c)=>(c.j||(m[c.t]=(m[c.t]||0)+1),m),{}))};
 $('info').textContent=stick;
+$('wv').onclick=e=>{const b=e.target.closest('.wbtn');if(b)act('watch',{p:+b.dataset.p})};
+$('wv').onmouseover=e=>{const c=e.target.closest('.c');if(c&&+c.dataset.t!==selT)show(+c.dataset.t)};
 $('me').onmouseover=e=>{const c=e.target.closest('.c');if(c&&+c.dataset.t!==selT)show(+c.dataset.t)};
 $('me').onclick=e=>{const c=e.target.closest('.c');if(!c)return;const i=+c.dataset.i,pr=V&&V.pr;
 if(pr&&pr.p==V.mi&&pr.hi&&pr.hi.includes(i))return respond(pr.hi.indexOf(i));

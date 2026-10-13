@@ -24,7 +24,7 @@ const cleanKey = s => String(s || '').replace(/[\s<>&"'`\/\\?#%]/g, '').slice(0,
 function mkRoom(key) {
   let code = key;
   if (!code) do { code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[rnd(24)]).join(''); } while (rooms.has(code));
-  const r = { code, pl: [], S: null, pending: null, pn: 0, last: Date.now(), cfg: { cpu: -1, counts: T.map(t => t.c), speed: 1 } };
+  const r = { code, pl: [], S: null, pending: null, pn: 0, spec: [], last: Date.now(), cfg: { cpu: -1, counts: T.map(t => t.c), speed: 1 } };
   rooms.set(code, r);
   return r;
 }
@@ -33,11 +33,12 @@ function addPlayer(r, name) {
   r.pl.push(p);
   return p;
 }
-// 順位: 退社した順 → 残っている人(手札が少ない順) → 最後にサボりを持っていた人
+// 順位: (1)退社した順 → (2)社長でサボりを当てた人 → (3)残っている人(手札が少ない順) → 最後にサボりを持っていた人
 function rankOf(S) {
-  const L = S.loser, rows = [];
-  S.exits.forEach(p => { if (p !== L) rows.push({ p, k: 'out' }); });
-  S.P.map((_, p) => p).filter(p => !S.out[p] && p !== L).sort((a, b) => S.hands[a].length - S.hands[b].length)
+  const L = S.loser, W = S.revealer >= 0 && S.revealer !== L ? S.revealer : -1, rows = [];
+  S.exits.forEach(p => { if (p !== L && p !== W) rows.push({ p, k: 'out' }); });
+  if (W >= 0) rows.push({ p: W, k: 'boss' });
+  S.P.map((_, p) => p).filter(p => !S.out[p] && p !== L && p !== W).sort((a, b) => S.hands[a].length - S.hands[b].length)
     .forEach(p => rows.push({ p, k: 'n', n: S.hands[p].length }));
   rows.push({ p: L, k: 'loser' });
   let r = 0, prev = -1;
@@ -55,11 +56,15 @@ function view(r, pid) {
   v.out = S.out; v.turn = S.turn; v.phase = S.phase; v.known = S.known; v.st = S.P.map((_, p) => (S.skip[p] ? '🍻飲み会中' : S.nopair[p] ? '💰賄賂中' : '')); v.msg = S.msg; v.hl = S.hl; v.log = S.log; v.loser = S.loser; v.rank = S.ph === 'over' ? rankOf(S) : null;
   v.pr = S.prompt ? (S.prompt.p === mi ? S.prompt : { p: S.prompt.p, from: S.prompt.from }) : null;
   v.pl = mi >= 0 ? S.pl[mi] : []; v.last = S.last;
+  // 観戦(ゲーム中に入った人・退社した人)は、選んだプレイヤーの手札を見られる
+  const w = r.spec.find(x => x.id === pid) || r.pl.find(x => x.id === pid);
+  v.spec = !!w && r.spec.includes(w);
+  if (S.ph === 'play' && w && w.watch >= 0 && (mi < 0 || S.out[mi]) && S.P[w.watch] && !S.out[w.watch]) v.watch = { p: w.watch, hand: S.hands[w.watch].map(c => (c.j ? { j: 1 } : { t: c.t })) };
   return v;
 }
 function push(r) {
   r.last = Date.now();
-  for (const p of r.pl) if (p.res) p.res.write('data: ' + JSON.stringify(view(r, p.id)) + '\n\n');
+  for (const p of [...r.pl, ...r.spec]) if (p.res) p.res.write('data: ' + JSON.stringify(view(r, p.id)) + '\n\n');
 }
 function removePlayer(r, pid) {
   const i = r.pl.findIndex(p => p.id === pid);
@@ -118,6 +123,7 @@ function debugDeal(spec) {
 function startGame(r, hs, dbg) {
   const wait = ms => new Promise(res => setTimeout(res, ms * SCALE * (r.cfg.speed || 1))); // 演出の待ち時間(部屋ごとに速さを変えられる)
   const D = dbg ? debugDeal(dbg) : null;
+  r.pl.forEach(p => { p.watch = -1; });
   const P = hs.map(h => ({ id: h.id, name: h.name, cpu: 0 })), cn = shuf(ROBOTS.slice()).map(n => '🤖' + n); // CPU名: 実在ロボットの名前からランダム(重複なし)
   let k = 0;
   const cfg = r.cfg, want = D ? D.n : (cfg.cpu >= 0 ? Math.min(hs.length + cfg.cpu, 6) : Math.max(3, hs.length));
@@ -182,7 +188,7 @@ function startGame(r, hs, dbg) {
     const j = l => l.map(nm).join('・');
     pm(a, `${l}: ${PN(t)}に ${j(A)} を渡し、${j(B)} を受け取った`); pm(t, `${l}: ${PN(a)}に ${j(B)} を渡し、${j(A)} を受け取った`);
   }
-  async function over(l) { S.ph = 'over'; S.loser = l; S.prompt = null; S.msg = ''; lg(`🏁 ゲーム終了: ${PN(l)}が残業に…`); await upd(); }
+  async function over(l) { S.ph = 'over'; S.loser = l; S.prompt = null; while (r.spec.length && r.pl.length < 6) r.pl.push(r.spec.shift()); S.msg = ''; lg(`🏁 ゲーム終了: ${PN(l)}が残業に…`); await upd(); }
   async function run() {
     lg('ゲーム開始!');
     await upd('配り終わり!最後にサボり😴を持っていたら負け', 1500);
@@ -244,7 +250,7 @@ function startGame(r, hs, dbg) {
     else if (k === 'kiro') {
       const i = cpu(a) ? rnd(hd(t).length) : await choose(a, `${PN(t)}の手札から公開するカードを1枚選ぼう`, null, t);
       S.hl = { p: t, i }; await upd(null, 700); S.hl = null; const c = hd(t)[i];
-      if (c.j) { lg(`　→ ${PN(t)}の手札を公開…サボりカード発覚!😴`); await upd(m + '手札を公開…サボりカード発覚!😴', 1500); return over(t); }
+      if (c.j) { lg(`　→ ${PN(t)}の手札を公開…サボりカード発覚!😴`); await upd(m + '手札を公開…サボりカード発覚!😴', 1500); S.revealer = a; return over(t); }
       if (T[c.t].k === 'boss') { give(t, a, i, '社長で公開'); pm(a, `🔍 社長: ${PN(t)}の${nm(c)}が公開され、受け取った`); pm(t, `🔍 社長: ${nm(c)}が公開され、${PN(a)}に渡った`); m += `手札を公開: ${nm(c)} → 上司命令なので${PN(a)}に渡った`; }
       else m += `手札を公開: ${nm(c)}(セーフ)`;
     }
@@ -298,7 +304,7 @@ function body(req) {
   });
 }
 const json = (res, o, code = 200) => { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(o)); };
-const auth = (room, pid, token) => { const r = rooms.get(String(room || '').toUpperCase()); const p = r && r.pl.find(x => x.id === pid && x.token === token); return p ? { r, p } : null; };
+const auth = (room, pid, token) => { const r = rooms.get(String(room || '').toUpperCase()); const p = r && (r.pl.find(x => x.id === pid && x.token === token) || r.spec.find(x => x.id === pid && x.token === token)); return p ? { r, p } : null; };
 
 http.createServer(async (req, res) => {
   const u = new URL(req.url, 'http://x');
@@ -324,6 +330,7 @@ http.createServer(async (req, res) => {
         if (S && S.ph === 'play' && r.pending && S.prompt && S.P[S.prompt.p].id === p.id) r.pending.arm(20000);
         push(r);
         setTimeout(() => { if (!p.res && r.pl.includes(p) && !(S && r.S === S && S.ph === 'play')) removePlayer(r, p.id); }, 300000);
+        setTimeout(() => { const k = r.spec.indexOf(p); if (!p.res && k >= 0) { r.spec.splice(k, 1); push(r); } }, 120000);
       });
       return;
     }
@@ -346,12 +353,17 @@ http.createServer(async (req, res) => {
           r = mkRoom(key);
         }
         if (!r) return json(res, { error: 'ルームが見つかりません' });
-        const nm0 = clean(b.name) || '名無しの労働者', ghost = r.pl.find(x => !x.res && x.name === nm0);
+        const nm0 = clean(b.name) || '名無しの労働者', ghost = r.pl.find(x => !x.res && x.name === nm0) || r.spec.find(x => !x.res && x.name === nm0);
         if (ghost) { // 切断中の同名の席があれば、そこに復帰する(ブラウザを変えたり、保存が消えた場合の救済)
           ghost.token = crypto.randomBytes(12).toString('hex'); push(r);
           return json(res, { room: r.code, pid: ghost.id, token: ghost.token, back: true });
         }
-        if (r.S && r.S.ph === 'play') return json(res, { error: 'ゲーム中のため参加できません。終わるまで待ってください(切断した人は、同じ名前で入り直すと戻れます)' });
+        if (r.S && r.S.ph === 'play') { // ゲーム中は観戦として入る(終了後に参加者になる)
+          if (r.spec.length >= 20) return json(res, { error: '観戦の人数がいっぱいです' });
+          const sp = { id: crypto.randomBytes(4).toString('hex'), token: crypto.randomBytes(12).toString('hex'), name: nm0, res: null, watch: -1 };
+          r.spec.push(sp); push(r);
+          return json(res, { room: r.code, pid: sp.id, token: sp.token, spec: true });
+        }
         if (r.pl.length >= 6) return json(res, { error: 'ルームが満員です(最大6人)' });
         const p = addPlayer(r, b.name); push(r);
         return json(res, { room: r.code, pid: p.id, token: p.token });
@@ -360,6 +372,11 @@ http.createServer(async (req, res) => {
         const a = auth(b.room, b.pid, b.token);
         if (!a) return json(res, { error: 'auth' }, 403);
         const { r, p } = a, S = r.S;
+        if (r.spec.includes(p)) { // 観戦者の操作
+          if (b.type === 'watch' && S && S.ph === 'play') { const k = parseInt(b.p); p.watch = k >= 0 && k < S.P.length ? k : -1; push(r); }
+          else if (b.type === 'leave') { r.spec.splice(r.spec.indexOf(p), 1); if (p.res) { try { p.res.end(); } catch (e) {} p.res = null; } push(r); }
+          return json(res, { ok: true });
+        }
         if (b.type === 'start' && r.pl[0] === p && (!S || S.ph === 'over')) {
           if (S) r.pl = r.pl.filter(x => x.res || x === p);
           try { startGame(r, r.pl.slice(0, 6), r.pl.length === 1 ? b.debug : null); } catch (e) { return json(res, { error: e.message }); }
@@ -378,6 +395,9 @@ http.createServer(async (req, res) => {
           r.cfg = { cpu: c, counts: b.counts.slice(), speed: r.cfg.speed }; push(r);
         } else if (b.type === 'speed' && r.pl[0] === p && [1, 1.8, 3, 5].includes(+b.v)) { // CPUの進む速さ(いつでもホストが変更可)
           r.cfg.speed = +b.v; push(r);
+        } else if (b.type === 'watch' && S && S.ph === 'play') { // 退社した人は、他の人の手札を見られる
+          const i = S.P.findIndex(x => x.id === p.id), k = parseInt(b.p);
+          if (i >= 0 && S.out[i]) { p.watch = k >= 0 && k < S.P.length && k !== i ? k : -1; push(r); }
         } else if (b.type === 'leave') removePlayer(r, p.id);
         return json(res, { ok: true });
       }
