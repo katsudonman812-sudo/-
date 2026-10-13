@@ -58,15 +58,17 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 .cin{display:flex;gap:6px;margin-top:6px}.cin input{flex:1;min-width:0;padding:7px;border-radius:8px;border:1px solid #fff5;background:#0003;color:inherit;font-size:14px}
 .hb{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:space-between}.hb b{color:var(--acc);font-size:13px}.hb .hbtn{display:flex;gap:6px;flex-wrap:wrap}.hb select{padding:4px;font-size:12px;border-radius:8px;background:#0003;color:inherit;border:1px solid #fff5}
 .go.sm{font-size:12px;padding:5px 10px}.lchat{margin:10px 0;text-align:left}#open{position:relative}#ver{position:absolute;right:10px;bottom:6px;font-size:11px;opacity:.65}
+.jmp{display:block;margin:4px auto 0;background:#19b5ff;color:#06222e}.sspd{display:block;margin:6px auto;font-size:14px}.sspd select{padding:5px;border-radius:8px;background:#0003;color:inherit;border:1px solid #fff5;font-size:14px}
 </style></head><body>
 <main>
 <section id="open" class="felt hero"><div class="big">💼</div><h2>サボりゲーム</h2>
 <p>サボり😴を押し付け合う、ババ抜きベースのカードゲーム</p>
 <input id="nm" maxlength="12" placeholder="なまえ">
+<label class="sspd">CPUの速さ <select id="sspd"><option value="1">超早い</option><option value="1.8">はやい</option><option value="3">ふつう</option><option value="5">おそい</option></select></label>
 <button class="go" id="bsolo">ひとりで遊ぶ(CPU対戦)</button>
 <input id="kw" maxlength="12" placeholder="部屋の名前(3〜12文字)">
 <button class="go" id="bcre">みんなで遊ぶ</button>
-<p id="onote" class="sub"></p><div id="ver">ver1.18</div></section>
+<p id="onote" class="sub"></p><div id="ver">ver1.0.0</div></section>
 <details id="dbg" class="felt" hidden style="margin-top:10px"><summary style="cursor:pointer;font-weight:700">🛠 デバッグ(条件を指定してひとりで遊ぶ)</summary>
 <div class="dg"><label>CPUの人数 <select id="dcpu"></select></label> <label>最初の手番 <select id="dfirst"></select></label></div>
 <div id="drows"></div>
@@ -75,7 +77,7 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 <section id="lobby" class="felt" hidden>
 <div class="nm">部屋の名前</div><div id="code"></div>
 <div style="text-align:center;margin:8px"><button class="go" id="bcopy">招待リンクをコピー</button></div>
-<ul id="plist"></ul><div class="box lchat"><h3>💬 チャット</h3><div id="lcmsg" class="lg cm"></div><div class="cin"><input id="lcin" maxlength="100" placeholder="メッセージ(Enterで送信)"><button class="go sm" id="lcsend">送信</button></div></div><div style="text-align:center;margin:6px"><button class="go" id="bcfg">⚙ ゲーム設定</button><div class="sub" id="lcfg"></div></div><p id="lnote"></p><p class="sub">CPUの人数とカード枚数は、ゲーム設定で変えられます(人間とCPUで最大6人)。</p>
+<ul id="plist"></ul><div class="box lchat"><h3>💬 チャット</h3><div id="lcmsg" class="lg cm"></div><button class="go sm jmp" id="j_lcmsg" hidden>⬇ 最新へ</button><div class="cin"><input id="lcin" maxlength="100" placeholder="メッセージ(Enterで送信)"><button class="go sm" id="lcsend">送信</button></div></div><div style="text-align:center;margin:6px"><button class="go" id="bcfg">⚙ ゲーム設定</button><div class="sub" id="lcfg"></div></div><p id="lnote"></p><p class="sub">CPUの人数とカード枚数は、ゲーム設定で変えられます(人間とCPUで最大6人)。</p>
 <div style="display:flex;gap:8px;justify-content:center"><button class="go" id="bs">ゲーム開始</button><button class="go" id="bback">やめる</button></div></section>
 <details id="rd" class="felt" style="margin-top:10px"><summary style="cursor:pointer;font-weight:700">🃏 カード効果・ルールを見る</summary><div id="rules0" style="font-size:13px;line-height:1.7;margin-top:8px"></div></details>
 <div id="game" class="layout" hidden>
@@ -86,8 +88,8 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 <aside class="side">
 <div class="box hb"><b id="hd"></b><span class="hbtn"><select id="spd" title="CPUの進む速さ"><option value="1">速さ: 超早い</option><option value="1.8">速さ: はやい</option><option value="3">速さ: ふつう</option><option value="5">速さ: おそい</option></select><button class="go sm" id="bcp2">🔗 招待</button><button class="go sm" id="bleave">ロビーへ</button></span></div>
 <div class="box"><div class="tabs" id="tabs"><button class="tb on" data-t="log">📋 ログ</button><button class="tb" data-t="chat" id="tchat">💬 チャット</button><button class="tb" data-t="cards">🃏 カード</button><button class="tb" data-t="pls">👥 みんな</button></div>
-<div id="p_log" class="pane"><h3>全体のログ</h3><div id="log" class="lg"></div><h3 class="ph">🔒 あなただけのログ(カードの移動)</h3><div id="plog" class="lg"></div></div>
-<div id="p_chat" class="pane" hidden><div id="cmsg" class="lg cm"></div><div class="cin"><input id="cin" maxlength="100" placeholder="メッセージ(Enterで送信)"><button class="go sm" id="csend">送信</button></div></div>
+<div id="p_log" class="pane"><h3>全体のログ</h3><div id="log" class="lg"></div><button class="go sm jmp" id="j_log" hidden>⬇ 最新へ</button><h3 class="ph">🔒 あなただけのログ(カードの移動)</h3><div id="plog" class="lg"></div><button class="go sm jmp" id="j_plog" hidden>⬇ 最新へ</button></div>
+<div id="p_chat" class="pane" hidden><div id="cmsg" class="lg cm"></div><button class="go sm jmp" id="j_cmsg" hidden>⬇ 最新へ</button><div class="cin"><input id="cin" maxlength="100" placeholder="メッセージ(Enterで送信)"><button class="go sm" id="csend">送信</button></div></div>
 <div id="p_cards" class="pane" hidden><div id="rules"></div></div>
 <div id="p_pls" class="pane" hidden><div id="pls"></div></div></div>
 </aside></div>
@@ -122,8 +124,10 @@ async function enter(p,b){const name=$('nm').value.trim();localStorage.setItem('
 if(r.error){$('onote').textContent=r.error;return false}sess=r;localStorage.setItem('zg',JSON.stringify(r));history.replaceState(null,'','?room='+encodeURIComponent(r.room));connect();return true}
 const copy=b=>{const l=location.origin+'/?room='+encodeURIComponent(sess.room);(navigator.clipboard?navigator.clipboard.writeText(l):Promise.reject()).then(()=>b.textContent='コピーしました ✓',()=>prompt('招待リンク',l))};
 const leave=async()=>{await act('leave');if(es)es.close();reset()};
-$('bcre').onclick=()=>{const k=$('kw').value.trim();if(!k)return $('onote').textContent='部屋の名前を入力してください(友達と同じ名前にすると、同じ部屋に入れます)';enter('join',{room:k,create:1})};
-$('bsolo').onclick=async()=>{if(await enter('create',{}))act('start')};
+$('bcre').onclick=()=>{const k=$('kw').value.trim();if(!k)return $('onote').textContent='部屋の名前を入力してください(友達と同じ名前にすると、同じ部屋に入れます)';(async()=>{if(await enter('join',{room:k,create:1})&&sess&&sess.created)setSpd()})()};
+$('sspd').value=localStorage.getItem('zspd')||'1';$('sspd').onchange=()=>localStorage.setItem('zspd',$('sspd').value);
+const setSpd=()=>act('speed',{v:+$('sspd').value});
+$('bsolo').onclick=async()=>{if(await enter('create',{})){await setSpd();act('start')}};
 $('bcopy').onclick=()=>copy($('bcopy'));$('bcp2').onclick=()=>copy($('bcp2'));$('bs').onclick=async()=>{const r=await act('start');if(r&&r.error)alert(r.error)};
 // ---- デバッグ(?debug=1 のときだけ表示) ----
 function dRows(){const n=+$('dcpu').value,box=$('drows');while(box.children.length>n+1)box.lastChild.remove();
@@ -135,12 +139,13 @@ if(!await enter('create',{}))return;const r=await act('start',{debug:spec});if(r
 // ---- ゲーム設定(ホストだけ変更できる) ----
 const cfgSend=()=>{if(!V||V.host!=V.me)return;act('cfg',{cpu:+$('ccpu').value,counts:[...document.querySelectorAll('#cmc .cn')].map(x=>Math.max(0,Math.min(8,Math.round((parseInt(x.value)||0)/2)*2)))})};
 function buildCfg(){$('cmc').innerHTML=`<h4>⚙ ゲーム設定</h4><p class="sub" id="cwho"></p><h4>CPUの人数</h4><select id="ccpu"><option value="-1">自動(3人まで補充)</option>${[0,1,2,3,4,5].map(i=>`<option value="${i}">${i}人</option>`).join('')}</select> <span class="sub">人間とCPUで最大6人</span>
+<h4>CPUの速さ</h4><select id="cspd"><option value="1">超早い</option><option value="1.8">はやい</option><option value="3">ふつう</option><option value="5">おそい</option></select> <span class="sub">CPUの動きや、表示の待ち時間</span>
 <h4>デッキのカード枚数(0・2・4・6・8)</h4><p class="sub">枚数は偶数だけです。奇数だと、ペアにならない札が残って、ゲームが終わらなくなるためです。</p>${T.map((t,i)=>`<div class="crow"><span>${t.e}${t.n}</span><input type="number" class="cn" data-i="${i}" min="0" max="8" step="2"></div>`).join('')}<div class="crow"><span>😴サボり</span><span>1枚(固定)</span></div>
 <p id="ctot"></p><button class="go" id="creset">初期値に戻す</button>`;
-$('ccpu').onchange=cfgSend;document.querySelectorAll('#cmc .cn').forEach(x=>x.onchange=cfgSend);
+$('ccpu').onchange=cfgSend;$('cspd').onchange=()=>{if(V&&V.host==V.me)act('speed',{v:+$('cspd').value})};document.querySelectorAll('#cmc .cn').forEach(x=>x.onchange=cfgSend);
 $('creset').onclick=()=>{document.querySelectorAll('#cmc .cn').forEach((x,i)=>x.value=T[i].c);$('ccpu').value=-1;cfgSend()};syncCfg()}
 function syncCfg(){if(!V||!$('ccpu'))return;const host=V.host==V.me,g=V.cfg;$('cwho').textContent=host?'あなたがホストです。変更はすぐ全員に反映されます。':'変更できるのはホストだけです(内容は確認できます)。';
-if(document.activeElement!==$('ccpu'))$('ccpu').value=g.cpu;$('ccpu').disabled=!host;
+if(document.activeElement!==$('ccpu'))$('ccpu').value=g.cpu;$('ccpu').disabled=!host;if(document.activeElement!==$('cspd'))$('cspd').value=V.speed;$('cspd').disabled=!host;
 document.querySelectorAll('#cmc .cn').forEach((x,i)=>{if(document.activeElement!==x)x.value=g.counts[i];x.disabled=!host});
 $('ctot').textContent=`デッキ合計: ${g.counts.reduce((a,b)=>a+b,0)+1}枚(サボり含む)`}
 const cfgOpen=on=>{if(on&&V)buildCfg();$('cm').hidden=!on};
@@ -150,12 +155,18 @@ $('bback').onclick=leave;$('bleave').onclick=leave;$('home').onclick=leave;$('to
 // ---- タブ・チャット ----
 let tab='log',chatSeen=-1,chatKey='';
 const lastTs=()=>V&&V.chat&&V.chat.length?V.chat[V.chat.length-1].ts:0;
-function setTab(t){tab=t;['log','chat','cards','pls'].forEach(x=>{$('p_'+x).hidden=x!=t});document.querySelectorAll('.tb').forEach(b=>b.classList.toggle('on',b.dataset.t==t));chatKey='';renderChat()}
+// 過去ログを読んでいる間は、新着が来ても動かさない(「最新へ」で戻れる)
+const nearEnd=e=>e.scrollHeight-e.scrollTop-e.clientHeight<24;
+function feed(id,html){const e=$(id),jb=$('j_'+id);if(e._h===html)return;e._h=html;const keep=e.scrollTop,pin=e._pin!==false;e.innerHTML=html;
+if(pin)e.scrollTop=e.scrollHeight;else{e.scrollTop=keep;if(jb){jb.hidden=false;jb.textContent='⬇ 最新へ(新着あり)'}}}
+function jumpEnd(id){const e=$(id),jb=$('j_'+id);e._pin=true;e.scrollTop=e.scrollHeight;if(jb)jb.hidden=true}
+['log','plog','cmsg','lcmsg'].forEach(id=>{const e=$(id),jb=$('j_'+id);e.onscroll=()=>{e._pin=nearEnd(e);if(e._pin&&jb)jb.hidden=true;else if(jb&&jb.hidden){jb.hidden=false;jb.textContent='⬇ 最新へ'}};if(jb)jb.onclick=()=>jumpEnd(id)});
+function setTab(t){tab=t;['log','chat','cards','pls'].forEach(x=>{$('p_'+x).hidden=x!=t});document.querySelectorAll('.tb').forEach(b=>b.classList.toggle('on',b.dataset.t==t));chatKey='';renderChat();['log','plog','cmsg'].forEach(id=>{const e=$(id);if(e._pin!==false)e.scrollTop=e.scrollHeight})}
 function renderChat(){if(!V)return;if(chatSeen<0)chatSeen=lastTs();const k=(V.chat||[]).length+':'+lastTs()+':'+tab;
 if(k!==chatKey){chatKey=k;const h=(V.chat||[]).map(m=>`<div class="cmsg${m.id==V.me?' mine':''}"><b>${esc(m.n)}</b>${esc(m.t)}</div>`).join('')||'<div class="sub">まだメッセージはありません</div>';
-['cmsg','lcmsg'].forEach(id=>{const e=$(id);e.innerHTML=h;e.scrollTop=e.scrollHeight})}
+['cmsg','lcmsg'].forEach(id=>feed(id,h))}
 if(tab=='chat')chatSeen=lastTs();$('tchat').textContent='💬 チャット'+(lastTs()>chatSeen?' ●':'')}
-const sendChat=i=>{const t=i.value.trim();if(!t||!sess)return;i.value='';act('chat',{text:t})};
+const sendChat=i=>{const t=i.value.trim();if(!t||!sess)return;i.value='';['cmsg','lcmsg'].forEach(id=>{$(id)._pin=true});act('chat',{text:t})};
 $('tabs').onclick=e=>{const b=e.target.closest('.tb');if(b)setTab(b.dataset.t)};
 [['cin','csend'],['lcin','lcsend']].forEach(([i,b])=>{$(b).onclick=()=>sendChat($(i));$(i).onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing)sendChat($(i))}});
 function render(){if(V&&V.ph=='play')inLobby=false;const v=!V?'open':(V.ph=='lobby'||(V.ph=='over'&&inLobby))?'lobby':'game';if(!$('cm').hidden)V?syncCfg():cfgOpen(false);$('dbg').hidden=!(DEBUG&&v=='open');['open','lobby','game'].forEach(x=>$(x).hidden=x!=v);$('end').hidden=!(v=='game'&&V.ph=='over');
@@ -163,7 +174,7 @@ $('rd').hidden=v=='game';if(v=='lobby')rLobby();if(v=='game')rGame();if(V)render
 function rLobby(){$('code').textContent=V.code;
 $('plist').innerHTML=V.lobby.map(x=>`<li>${x.id==V.host?'👑':'👤'} ${esc(x.name)}${x.id==V.me?'(あなた)':''}${x.on?'':' ⚠切断中'}</li>`).join('');
 const n=V.lobby.length,g=V.cfg,c=g.cpu>=0?Math.min(g.cpu,Math.max(0,6-n)):Math.max(0,3-n),isH=V.host==V.me,tot=g.counts.reduce((a,b)=>a+b,0)+1,chg=T.some((t,i)=>g.counts[i]!=t.c);
-$('lcfg').textContent=`CPU: ${g.cpu<0?'自動':g.cpu+'人'} / デッキ: ${tot}枚${chg?'(変更あり)':''}`;
+$('lcfg').textContent=`CPU: ${g.cpu<0?'自動':g.cpu+'人'} / 速さ: ${({1:'超早い',1.8:'はやい',3:'ふつう',5:'おそい'})[V.speed]||'超早い'} / デッキ: ${tot}枚${chg?'(変更あり)':''}`;
 $('lnote').textContent=`参加者${n}人 + CPU${c}人で開始します`+(n+c<2?'(2人以上必要です。CPUを増やしてください)':'');
 $('bs').hidden=!isH;if(!isH)$('lnote').textContent+=' / ホストの開始を待っています'}
 const cardH=(c,x='')=>`<i>${c.j?'😴':T[c.t].e}</i><span>${c.j?'サボり':T[c.t].n}</span>${x}`;
@@ -184,7 +195,7 @@ const watching=(me<0||!!V.out[me])&&play;$('wv').hidden=!watching;
 if(watching){const w=V.watch;$('wv').innerHTML=`<div class="nm">${me<0?'👀 観戦中':'🎉 退社済み'} — 見たいプレイヤーを選ぶと、その人の手札が見られます</div><div class="wb">`+V.P.map((x,p)=>p==me||V.out[p]?'':`<button class="go wbtn${w&&w.p==p?' on':''}" data-p="${p}">${esc(x.name)}(${x.n}枚)</button>`).join('')+'</div>'+(w?`<div class="nm">${esc(V.P[w.p].name)}の手札</div><div class="hand">`+w.hand.map(c=>`<div class="c${c.j?' joker':''}" data-t="${c.j?-1:c.t}">${cardH(c)}</div>`).join('')+'</div>':'')}
 $('hd').textContent='ルーム '+V.code;$('spd').value=V.speed;$('spd').disabled=V.host!=V.me;
 $('pls').innerHTML=V.P.map((x,p)=>`<div class="${V.turn==p&&play?'cur':''}">${V.turn==p&&play?'▶':'　'}${esc(x.name)}${p==me?'(あなた)':''} — ${V.out[p]?'🎉退社':x.n+'枚'}${stt(p)}</div>`).join('');
-const fill=(id,a)=>{const e=$(id);e.innerHTML=a.map(x=>`<div>${esc(x)}</div>`).join('')||'<div class="sub">まだありません</div>';e.scrollTop=e.scrollHeight};
+const fill=(id,a)=>feed(id,a.map(x=>`<div>${esc(x)}</div>`).join('')||'<div class="sub">まだありません</div>');
 fill('log',V.log||[]);fill('plog',V.pl||[]);rRules(cn);
 $('msg').textContent=own?pr.msg:(V.msg||'')+(pr&&!own?` ⏳${V.P[pr.p].name}の操作待ち`:'');
 const key=pr?pr.n+':'+pr.p:'';

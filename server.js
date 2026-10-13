@@ -346,11 +346,11 @@ http.createServer(async (req, res) => {
       }
       if (u.pathname === '/api/join') {
         const key = cleanKey(b.room);
-        let r = rooms.get(key);
+        let r = rooms.get(key), created = false;
         if (!r && b.create) { // 同じ名前の部屋がなければ、その名前で作る
           if (key.length < 3) return json(res, { error: '部屋の名前は3〜12文字で入力してください' });
           if (rooms.size > 500) return json(res, { error: 'サーバーが混み合っています' });
-          r = mkRoom(key);
+          r = mkRoom(key); created = true;
         }
         if (!r) return json(res, { error: 'ルームが見つかりません' });
         const nm0 = clean(b.name) || '名無しの労働者', ghost = r.pl.find(x => !x.res && x.name === nm0) || r.spec.find(x => !x.res && x.name === nm0);
@@ -366,7 +366,7 @@ http.createServer(async (req, res) => {
         }
         if (r.pl.length >= 6) return json(res, { error: 'ルームが満員です(最大6人)' });
         const p = addPlayer(r, b.name); push(r);
-        return json(res, { room: r.code, pid: p.id, token: p.token });
+        return json(res, { room: r.code, pid: p.id, token: p.token, created });
       }
       if (u.pathname === '/api/act') {
         const a = auth(b.room, b.pid, b.token);
