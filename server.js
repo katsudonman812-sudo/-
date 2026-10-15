@@ -53,7 +53,7 @@ function view(r, pid) {
   const mi = S.P.findIndex(x => x.id === pid);
   v.P = S.P.map((x, i) => ({ name: x.name, cpu: x.cpu, n: S.hands[i].length }));
   v.mi = mi; v.hand = mi >= 0 ? S.hands[mi].map(c => { const f = S.fresh[mi].get(c); return f ? { ...c, g: f.l } : c; }) : [];
-  v.out = S.out; v.turn = S.turn; v.phase = S.phase; v.known = S.known; v.st = S.P.map((_, p) => (S.skip[p] ? '🍻飲み会中' : S.nopair[p] ? '💰賄賂中' : '')); v.msg = S.msg; v.hl = S.hl; v.log = S.log; v.loser = S.loser; v.rank = S.ph === 'over' ? rankOf(S) : null;
+  v.out = S.out; v.turn = S.turn; v.phase = S.phase; v.known = S.known; v.st = S.P.map((_, p) => (S.skip[p] ? '🥴二日酔い中' : S.nopair[p] ? '🏠自宅待機中' : '')); v.msg = S.msg; v.hl = S.hl; v.log = S.log; v.loser = S.loser; v.rank = S.ph === 'over' ? rankOf(S) : null;
   v.pr = S.prompt ? (S.prompt.p === mi ? S.prompt : { p: S.prompt.p, from: S.prompt.from }) : null;
   v.pl = mi >= 0 ? S.pl[mi] : []; v.last = S.last;
   // 観戦(ゲーム中に入った人・退社した人)は、選んだプレイヤーの手札を見られる
@@ -205,7 +205,7 @@ function startGame(r, hs, dbg) {
       const c = hd(f).splice(i, 1)[0]; S.hl = null; mv(c, f); hd(a).push(c); tag(a, c, '引いた'); pm(a, `🃏 ${PN(f)}から ${nm(c)} を引いた`); pm(f, `🃏 ${PN(a)}に ${nm(c)} を引かれた`);
       const dm = `${PN(a)}が${PN(f)}から1枚引いた` + chk(); lg(dm); await upd(dm, 900);
       S.phase = '行動';
-      if (S.nopair[a]) { S.nopair[a] = 0; lg(`${PN(a)}は賄賂で1回休み(ペアを出せない)`); await upd(`${PN(a)}は1回休み…ペアは出せない`, 1200); }
+      if (S.nopair[a]) { S.nopair[a] = 0; lg(`${PN(a)}は自宅待機中のため、今回はカードを使えない`); await upd(`${PN(a)}は自宅待機…カードは使えない🏠`, 1200); }
       else await playPhase(a);
       S.fresh[a].forEach((f, c) => { if (f.s <= S.tseq) S.fresh[a].delete(c); });
       if (S.ph !== 'play') break;
@@ -245,7 +245,7 @@ function startGame(r, hs, dbg) {
   }
   async function eff(a, k, t) {
     let m = t >= 0 ? `${PN(t)}を指名。` : '';
-    if (k === 'sabori') m = 'ノルマ…何も起きない📈';
+    if (k === 'sabori') m = '雑務…何も起きない🧹';
     else if (k === 'meet') { const y = hd(t).some(c => c.j); m += y ? '「…サボりカード、持ってます😅」(申告)' : '申告なし(サボりは持っていない)'; if (y) S.known = t; else if (S.known === t) S.known = -1; }
     else if (k === 'kiro') {
       const i = cpu(a) ? rnd(hd(t).length) : await choose(a, `${PN(t)}の手札から公開するカードを1枚選ぼう`, null, t);
@@ -271,16 +271,13 @@ function startGame(r, hs, dbg) {
         const cas = ia.map(k => hd(a)[k]); const cj = hd(t)[await pick(t, '相手に渡すカードを1枚選ぼう(同時に交換)')]; exch(a, t, cas.map(c => hd(a).indexOf(c)), [hd(t).indexOf(cj)], '🐣交換'); m += `新人教育!${nn}枚と1枚を同時に交換🐣`;
       }
     }
-    else if (k === 'bribe') {
-      if (!hd(a).some(c => !c.j)) m += '渡せるカードがなかった';
-      else { const i = await pick(a, '賄賂にするカードを選ぼう(サボり以外)', c => !c.j); const c = give(a, t, i, '賄賂'); pm(a, `💰 賄賂: ${PN(t)}に ${nm(c)} を渡した`); pm(t, `💰 賄賂: ${PN(a)}から ${nm(c)} を受け取った(1回休み)`); S.nopair[t] = 1; m += `賄賂を渡した💰 ${PN(t)}は1回休み(次の番はペアを出せない)`; }
-    }
+    else if (k === 'bribe') { S.nopair[t] = 1; m += `自宅待機を命じた🏠 ${PN(t)}は次の番、カードを引くだけで使えない`; }
     else if (k === 'joho') {
       const ops = alive().filter(p => p !== a);
-      for (const o of ops) if (hd(o).length) { const i = await pick(o, `${PN(a)}に渡すカードを選ぼう`); const c = give(o, a, i, '情報共有'); pm(a, `📢 情報共有: ${PN(o)}から ${nm(c)} を受け取った`); pm(o, `📢 情報共有: ${PN(a)}に ${nm(c)} を渡した`); }
-      await upd('📢情報共有!相手全員が1枚ずつ渡した', 800);
-      for (const o of ops) if (hd(a).length) { const i = await pick(a, `${PN(o)}に渡すカードを選ぼう`); const c = give(a, o, i, '情報共有'); pm(o, `📢 情報共有: ${PN(a)}から ${nm(c)} を渡された`); pm(a, `📢 情報共有: ${PN(o)}に ${nm(c)} を渡した`); }
-      m = '📢情報共有!全員が1枚ずつ渡し合った';
+      for (const o of ops) if (hd(o).length) { const i = await pick(o, `${PN(a)}に渡すカードを選ぼう`); const c = give(o, a, i, '業務分担'); pm(a, `📋 業務分担: ${PN(o)}から ${nm(c)} を受け取った`); pm(o, `📋 業務分担: ${PN(a)}に ${nm(c)} を渡した`); }
+      await upd('📋業務分担!相手全員が1枚ずつ渡した', 800);
+      for (const o of ops) if (hd(a).length) { const i = await pick(a, `${PN(o)}に渡すカードを選ぼう`); const c = give(a, o, i, '業務分担'); pm(o, `📋 業務分担: ${PN(a)}から ${nm(c)} を渡された`); pm(a, `📋 業務分担: ${PN(o)}に ${nm(c)} を渡した`); }
+      m = '📋業務分担!全員が1枚ずつ渡し合った';
     }
     else if (k === 'energy') { m = '⚡エナドリ!もう一度労働フェーズ'; if (hd(a).some(c => c.j)) { S.known = a; m += ' …サボりカードを持っていると申告😰'; } }
     else if (k === 'tabako') {
@@ -288,7 +285,7 @@ function startGame(r, hs, dbg) {
       S.P.forEach((_, p) => { const n = hd(p).filter(c => !c.j && c.t === ti).length; if (n) { S.hands[p] = hd(p).filter(c => c.j || c.t !== ti); s.push(`${PN(p)}${n}枚`); } });
       m = '🚬タバコ休憩!' + (s.length ? s.join('・') + 'を場に出した' : '他に持っている人はいなかった');
     }
-    else if (k === 'nomikai') { S.skip[a] = 1; m = '🍻飲み会!自分は次の番、すべての行動をお休み'; }
+    else if (k === 'nomikai') { S.skip[a] = 1; m = '🥴二日酔い!自分は次の番、すべての行動をお休み'; }
     m += chk(); lg('　→ ' + m); await upd(m, 1500);
   }
   run().catch(e => console.error('game error', e && e.stack || e));
