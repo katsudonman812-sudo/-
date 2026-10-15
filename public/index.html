@@ -68,7 +68,7 @@ main{max-width:1100px;margin:0 auto;padding:8px;box-sizing:border-box}[hidden]{d
 <button class="go" id="bsolo">ひとりで遊ぶ(CPU対戦)</button>
 <input id="kw" maxlength="12" placeholder="部屋の名前(3〜12文字)">
 <button class="go" id="bcre">みんなで遊ぶ</button>
-<p id="onote" class="sub"></p><div id="ver">ver1.1.0</div></section>
+<p id="onote" class="sub"></p><div id="ver">ver1.1.1</div></section>
 <details id="dbg" class="felt" hidden style="margin-top:10px"><summary style="cursor:pointer;font-weight:700">🛠 デバッグ(条件を指定してひとりで遊ぶ)</summary>
 <div class="dg"><label>CPUの人数 <select id="dcpu"></select></label> <label>最初の手番 <select id="dfirst"></select></label></div>
 <div id="drows"></div>
@@ -201,7 +201,7 @@ $('msg').textContent=own?pr.msg:(V.msg||'')+(pr&&!own?` ⏳${V.P[pr.p].name}の�
 const key=pr?pr.n+':'+pr.p:'';
 if(key!==lastKey){lastKey=key;const a=$('act');a.innerHTML='';
 if(own&&pr.opts&&!pr.hi)pr.opts.forEach((l,i)=>{const b=document.createElement('button');b.className='go';b.textContent=l;b.onclick=()=>{a.innerHTML='';respond(i)};a.appendChild(b)})}
-if(V.ph=='over'){$('rank').innerHTML=(V.rank||[]).map(x=>`<div class="rk${x.p==me?' me':''}"><b>${x.r}位</b>　${esc(V.P[x.p].name)} <span class="sub">${x.k=='out'?'定時退社🎉':x.k=='boss'?'👔社長でサボりを当てた':x.k=='n'?x.n+'枚残り':'😴サボりを持っていた'}</span></div>`).join('');$('res').textContent=V.loser==me?'😱 残業確定…あなたの負け!':`🎉 定時退社!\n${V.P[V.loser].name}が残業に…`;}}
+if(V.ph=='over'){$('rank').innerHTML=(V.rank||[]).map(x=>`<div class="rk${x.p==me?' me':''}"><b>${x.r}位</b>　${esc(V.P[x.p].name)} <span class="sub">${x.k=='out'?'定時退社🎉':x.k=='boss'?'👔社長でサボりを当てた':x.k=='n'?x.n+'枚残り':'😴サボりを持っていた'}</span></div>`).join('');const ln=V.P[V.loser].name;$('res').textContent=V.reveal>=0?(V.loser==me?'😱 サボりがバレた…あなたの負け!':V.reveal==me?`🎉 サボりを見破った!\n${ln}のサボりがバレた`:`🎉 ${ln}のサボりがバレた!`):(V.loser==me?'😱 残業確定…あなたの負け!':`🎉 定時退社!\n${ln}が残業に…`);}}
 function ruleHtml(){const cards=T.map((t,i)=>`<li>${t.e}<b>${t.n}</b>(${cc(i,t)}枚): ${t.d}</li>`).join('');
 return `<h4>■ ターンの流れ</h4><p>手番は時計回りに進みます。自分のターンでは、次の2つを行い、②のあとに効果処理が入ります。</p>
 <ul><li><b>① カードを1枚引く【労働】(必須)</b><br>次の手番の人(画面で水色の枠に光っている人)の手札から、カードを1枚引きます。</li>

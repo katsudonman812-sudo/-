@@ -53,7 +53,7 @@ function view(r, pid) {
   const mi = S.P.findIndex(x => x.id === pid);
   v.P = S.P.map((x, i) => ({ name: x.name, cpu: x.cpu, n: S.hands[i].length }));
   v.mi = mi; v.hand = mi >= 0 ? S.hands[mi].map(c => { const f = S.fresh[mi].get(c); return f ? { ...c, g: f.l } : c; }) : [];
-  v.out = S.out; v.turn = S.turn; v.phase = S.phase; v.known = S.known; v.st = S.P.map((_, p) => (S.skip[p] ? '🥴二日酔い中' : S.nopair[p] ? '🏠自宅待機中' : '')); v.msg = S.msg; v.hl = S.hl; v.log = S.log; v.loser = S.loser; v.rank = S.ph === 'over' ? rankOf(S) : null;
+  v.out = S.out; v.turn = S.turn; v.phase = S.phase; v.known = S.known; v.st = S.P.map((_, p) => (S.skip[p] ? '🥴二日酔い中' : S.nopair[p] ? '🏠自宅待機中' : '')); v.msg = S.msg; v.hl = S.hl; v.log = S.log; v.loser = S.loser; v.rank = S.ph === 'over' ? rankOf(S) : null; v.reveal = S.ph === 'over' && S.revealer >= 0 ? S.revealer : -1;
   v.pr = S.prompt ? (S.prompt.p === mi ? S.prompt : { p: S.prompt.p, from: S.prompt.from }) : null;
   v.pl = mi >= 0 ? S.pl[mi] : []; v.last = S.last;
   // 観戦(ゲーム中に入った人・退社した人)は、選んだプレイヤーの手札を見られる
@@ -188,7 +188,7 @@ function startGame(r, hs, dbg) {
     const j = l => l.map(nm).join('・');
     pm(a, `${l}: ${PN(t)}に ${j(A)} を渡し、${j(B)} を受け取った`); pm(t, `${l}: ${PN(a)}に ${j(B)} を渡し、${j(A)} を受け取った`);
   }
-  async function over(l) { S.ph = 'over'; S.loser = l; S.prompt = null; while (r.spec.length && r.pl.length < 6) r.pl.push(r.spec.shift()); S.msg = ''; lg(`🏁 ゲーム終了: ${PN(l)}が残業に…`); await upd(); }
+  async function over(l) { S.ph = 'over'; S.loser = l; S.prompt = null; while (r.spec.length && r.pl.length < 6) r.pl.push(r.spec.shift()); S.msg = ''; lg(S.revealer >= 0 ? `🏁 ゲーム終了: ${PN(l)}のサボりがバレた!` : `🏁 ゲーム終了: ${PN(l)}が残業に…`); await upd(); }
   async function run() {
     lg('ゲーム開始!');
     await upd('配り終わり!最後にサボり😴を持っていたら負け', 1500);

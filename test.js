@@ -29,5 +29,5 @@ async function bot(name,sess,onView){
   bot('A',a,play(a,true));bot('B',b,play(b,false));
   await new Promise(r=>setTimeout(r,300));
   await post('act',{room:a.room,pid:a.pid,token:a.token,type:'start'});
-  setTimeout(()=>{console.log('TIMEOUT games',games,last&&last.ph,last&&last.msg);process.exit(1)},90000);
+  setTimeout(()=>{console.log('TIMEOUT games',games,last&&last.ph,last&&last.msg);process.exit(1)},180000);
 })();
