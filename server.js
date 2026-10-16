@@ -272,6 +272,19 @@ function startGame(r, hs, dbg) {
       }
     }
     else if (k === 'bribe') { S.nopair[t] = 1; m += `自宅待機を命じた🏠 ${PN(t)}は次の番、カードを引くだけで使えない`; }
+    else if (k === 'enkai') { // 全員が、右隣(=自分を引く順番の前の人)に1枚ずつ同時に渡す
+      await upd('🥂宴会!全員が右隣の人にカードを1枚渡す', 800);
+      const ring = alive(), moves = [];
+      for (const p of ring) {
+        if (!hd(p).length) continue;
+        const to = ring[(ring.indexOf(p) + ring.length - 1) % ring.length];
+        const i = await pick(p, `右隣(${PN(to)})に渡すカードを選ぼう`);
+        moves.push({ p, to, c: hd(p)[i] });
+      }
+      moves.forEach(x => { hd(x.p).splice(hd(x.p).indexOf(x.c), 1); mv(x.c, x.p); });
+      moves.forEach(x => { hd(x.to).push(x.c); tag(x.to, x.c, '宴会'); pm(x.p, `🥂 宴会: 右隣の${PN(x.to)}に ${nm(x.c)} を渡した`); pm(x.to, `🥂 宴会: ${PN(x.p)}から ${nm(x.c)} を受け取った`); });
+      m = '🥂宴会!全員が右隣の人に1枚ずつ渡した';
+    }
     else if (k === 'joho') {
       const ops = alive().filter(p => p !== a);
       for (const o of ops) if (hd(o).length) { const i = await pick(o, `${PN(a)}に渡すカードを選ぼう`); const c = give(o, a, i, '業務分担'); pm(a, `📋 業務分担: ${PN(o)}から ${nm(c)} を受け取った`); pm(o, `📋 業務分担: ${PN(a)}に ${nm(c)} を渡した`); }
